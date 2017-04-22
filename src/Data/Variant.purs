@@ -82,10 +82,8 @@ on p f g r =
 -- |  # on (SProxy :: SProxy "baz") (\baz -> "Baz: " <> show baz)
 -- | ```
 case_ ∷ ∀ a. Variant () → a
-case_ r = unsafeCrashWith error
-  where
-  Tuple tag _ = unsafeCoerce r
-  error = "Data.Variant: pattern match failure [" <> tag <> "]"
+case_ r = unsafeCrashWith case unsafeCoerce r of
+  Tuple tag _ → "Data.Variant: pattern match failure [" <> tag <> "]"
 
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
