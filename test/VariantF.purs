@@ -57,3 +57,9 @@ test = do
   assert' "case2: foo" $ case2 foo == "foo: (Just 42)"
   assert' "case2: bar" $ case2 bar == "bar: (Tuple \"bar\" 42)"
   assert' "case2: baz" $ case2 baz == "no match"
+
+  let
+    case3 ∷ VariantF (foo ∷ FProxy Maybe) String → String
+    case3 = case_ # on _foo (\a → "foo: " <> show a)
+
+  assert' "map" $ case3 (show <$> foo) == "foo: (Just \"42\")"
