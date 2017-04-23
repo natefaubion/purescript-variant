@@ -87,7 +87,7 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
--- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
+-- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
 -- | caseFn = default "No match"
 -- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
 -- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
