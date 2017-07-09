@@ -28,7 +28,7 @@ data Tuple a b = Tuple a b
 ```
 
 If I have a `Tuple Int String`, then I have available some `Int` value paired
-with a `String` value (or `Tuple * String`, thus a product). For convenience,
+with a `String` value (or `Int * String`, thus a product). For convenience,
 we often like to use records, especially for models in our shiny web apps.
 
 ```purescript
