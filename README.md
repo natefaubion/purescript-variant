@@ -141,7 +141,7 @@ someToString someBaz == "unknown"
 Handlers with `on` are also compositional! We can compose them together with
 function composition and reuse them in different contexts.
 
-```
+```purescript
 onFooOrBar :: forall v. (Variant v -> String) -> Variant (foo :: Int, bar :: Boolean | v) -> String
 onFooOrBar = on _foo show >>> on _bar (if _ then "true" else "false")
 
