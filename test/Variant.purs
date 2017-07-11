@@ -3,7 +3,7 @@ module Test.Variant where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Data.Maybe (Maybe(..))
-import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..))
+import Data.Variant (Variant, on, case_, default, inj, prj, elim, SProxy(..))
 import Test.Assert (assert', ASSERT)
 
 type TestVariants =
@@ -55,3 +55,15 @@ test = do
   assert' "case2: foo" $ case2 foo == "foo: 42"
   assert' "case2: bar" $ case2 bar == "bar: bar"
   assert' "case2: baz" $ case2 baz == "no match"
+
+  let
+    elim' :: Variant TestVariants -> String
+    elim' v = elim v
+      { foo: \a -> "foo: " <> show a
+      , bar: \a -> "bar: " <> a
+      , baz: \a -> "baz: " <> show a
+      }
+
+  assert' "elim': foo" $ elim' foo == "foo: 42"
+  assert' "elim': bar" $ elim' bar == "bar: bar"
+  assert' "elim': baz" $ elim' baz == "baz: true"
