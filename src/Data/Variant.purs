@@ -95,7 +95,7 @@ instance
 
 class Matches (vr ∷ # Type) a (cr ∷ # Type) | vr a → cr, cr → vr a
 
-instance variantRecordElim
+instance matches
   ∷ ( RowToList vr vl
     , RowToList cr cl
     , ToFunc vl a cl
