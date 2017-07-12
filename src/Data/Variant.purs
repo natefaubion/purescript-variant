@@ -4,19 +4,158 @@ module Data.Variant
   , prj
   , on
   , case_
+  , match
+  , flipMatch
+  , (##), ($$), (:+:)
+  , mapCase
+  , variant
+  , record
+  , downcast
+  , class ToFunc
+  , class Matches
+  , class SingletonRowList
   , default
   , module Exports
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(..))
+
+import Data.Array as A
+import Data.Maybe (Maybe(..), fromJust)
+import Data.StrMap as SM
+import Data.Record (unionMerge)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Tuple (Tuple(..))
-import Partial.Unsafe (unsafeCrashWith)
+import Data.Tuple (Tuple(..), fst, snd)
+
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+
+import Type.Row (class ListToRow, class RowToList, kind RowList, Cons, Nil)
+
 import Unsafe.Coerce (unsafeCoerce)
 
 data Variant (a ∷ # Type)
+
+class SingletonRowList (rl ∷ RowList)
+
+instance singletonRowList ∷ SingletonRowList (Cons s a Nil)
+
+variant
+  ∷ ∀ r rl
+  . RowToList r rl
+  ⇒ SingletonRowList rl
+  ⇒ Record r
+  → Variant r
+variant r = coerceV $ Tuple tag val
+  where
+  coerceV ∷ ∀ ω. Tuple String ω → Variant r
+  coerceV = unsafeCoerce
+
+  tag ∷ String
+  tag = unsafePartial fromJust $ A.head $ SM.keys $ toStrMap r
+
+  val ∷ ∀ ω. ω
+  val = unsafePartial fromJust $ A.head $ SM.values $ toStrMap r
+
+  toStrMap ∷ ∀ ρ α. Record ρ → SM.StrMap α
+  toStrMap = unsafeCoerce
+
+record
+  ∷ ∀ r rl
+  . RowToList r rl
+  ⇒ SingletonRowList rl
+  ⇒ Variant r
+  → Record r
+record v = fromStrMap $ SM.singleton (fst taggedTuple) (snd taggedTuple)
+  where
+  taggedTuple ∷ ∀ ω. Tuple String ω
+  taggedTuple = unsafeCoerce v
+
+  fromStrMap ∷ ∀ ρ α. SM.StrMap α → Record ρ
+  fromStrMap = unsafeCoerce
+
+
+downcast
+  ∷ ∀ r mx vr
+  . Union r mx vr
+  ⇒ Variant r
+  → Variant vr
+downcast = unsafeCoerce
+
+class ToFunc (inp ∷ RowList) a (out ∷ RowList) | inp a → out, out a → inp
+
+instance
+  nilToFunc
+  ∷ ToFunc Nil a Nil
+
+instance
+  consToFunc
+  ∷ ToFunc inptail a outtail
+  ⇒ ToFunc (Cons s inp inptail) a (Cons s (inp → a) outtail)
+
+class Matches (vr ∷ # Type) a (cr ∷ # Type) | vr a → cr, cr → vr a
+
+instance matches
+  ∷ ( RowToList vr vl
+    , RowToList cr cl
+    , ToFunc vl a cl
+    , ListToRow vl vr
+    , ListToRow cl cr )
+  ⇒ Matches vr a cr
+
+
+
+mapCase
+  ∷ ∀ vr a b ar br
+  . Matches vr a ar
+  ⇒ Matches vr b br
+  ⇒ (a → b)
+  → Record ar
+  → Record br
+mapCase f cases = fromStrMap $ map (f <<< _) $ toStrMap cases
+  where
+  toStrMap ∷ ∀ ρ α. Record ρ → SM.StrMap α
+  toStrMap = unsafeCoerce
+
+  fromStrMap ∷ ∀ ρ α. SM.StrMap α → Record ρ
+  fromStrMap = unsafeCoerce
+
+
+match
+  ∷ ∀ vr cr a
+  . Matches vr a cr
+  ⇒ Record cr
+  → Variant vr
+  → a
+match cases var =
+  let
+    unCoerceV ∷ ∀ ω. Variant vr → Tuple String ω
+    unCoerceV = unsafeCoerce
+
+    tagged ∷ ∀ ω. Tuple String ω
+    tagged = unCoerceV var
+
+    unsafeGet ∷ ∀ ω. String → (ω → a)
+    unsafeGet k = unsafePartial fromJust $ SM.lookup k $ unsafeCoerce cases
+
+    func ∷ ∀ ω. ω → a
+    func = unsafeGet $ fst tagged
+
+    res = func $ snd tagged
+  in res
+
+flipMatch
+  ∷ ∀ vr cr a
+  . Matches vr a cr
+  ⇒ Variant vr
+  → Record cr
+  → a
+flipMatch = flip match
+
+infixl 6 flipMatch as ##
+infixr 6 match as $$
+infixr 8 unionMerge as :+:
+
 
 -- | Inject into the variant at a given label.
 -- | ```purescript

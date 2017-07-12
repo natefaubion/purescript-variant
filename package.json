@@ -2,11 +2,12 @@
   "private": true,
   "scripts": {
     "build": "pulp build -- --censor-lib --strict",
+    "ide": "purs ide server",
     "test": "pulp test"
   },
   "devDependencies": {
     "pulp": "^11.0.0",
-    "purescript": "^0.11.4",
+    "purescript": "^0.11.6",
     "purescript-psa": "^0.5.0"
   }
 }
