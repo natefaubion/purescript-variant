@@ -7,13 +7,19 @@ module Data.Variant
   , match
   , flipMatch
   , (##), ($$), (:+:)
+  , mapCase
+  , variant
+  , record
+  , downcast
   , class ToFunc
+  , class SingletonRowList
   , default
   , module Exports
   ) where
 
 import Prelude
 
+import Data.Array as A
 import Data.Maybe (Maybe(..), fromJust)
 import Data.StrMap as SM
 import Data.Record (unionMerge)
@@ -23,7 +29,7 @@ import Data.Tuple (Tuple(..), fst, snd)
 
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 
-import Type.Row (class RowToList, kind RowList, Cons, Nil, class ListToRow)
+import Type.Row (class ListToRow, class RowToList, kind RowList, Cons, Nil)
 
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -39,7 +45,34 @@ variant
   ⇒ SingletonRowList rl
   ⇒ Record r
   → Variant r
-variant = unsafeCoerce
+variant r = coerceV $ Tuple tag val
+  where
+  coerceV ∷ ∀ ω. Tuple String ω → Variant r
+  coerceV = unsafeCoerce
+
+  tag ∷ String
+  tag = unsafePartial fromJust $ A.head $ SM.keys $ toStrMap r
+
+  val ∷ ∀ ω. ω
+  val = unsafePartial fromJust $ A.head $ SM.values $ toStrMap r
+
+  toStrMap ∷ ∀ ρ α. Record ρ → SM.StrMap α
+  toStrMap = unsafeCoerce
+
+record
+  ∷ ∀ r rl
+  . RowToList r rl
+  ⇒ SingletonRowList rl
+  ⇒ Variant r
+  → Record r
+record v = fromStrMap $ SM.singleton (fst taggedTuple) (snd taggedTuple)
+  where
+  taggedTuple ∷ ∀ ω. Tuple String ω
+  taggedTuple = unsafeCoerce v
+
+  fromStrMap ∷ ∀ ρ α. SM.StrMap α → Record ρ
+  fromStrMap = unsafeCoerce
+
 
 downcast
   ∷ ∀ r mx vr
@@ -58,6 +91,29 @@ instance
   consToFunc
   ∷ ToFunc inptail a outtail
   ⇒ ToFunc (Cons s inp inptail) a (Cons s (inp → a) outtail)
+
+mapCase
+  ∷ ∀ vr vl ar al br bl a b
+  . RowToList vr vl
+  ⇒ ListToRow vl vr
+  ⇒ RowToList ar al
+  ⇒ ListToRow al ar
+  ⇒ RowToList br bl
+  ⇒ ListToRow bl br
+  ⇒ ToFunc vl a al
+  ⇒ ToFunc vl b bl
+  ⇒ (a → b)
+  → Record ar
+  → Record br
+mapCase f cases = fromStrMap $ map (f <<< _) $ toStrMap cases
+  where
+  toStrMap ∷ ∀ ρ α. Record ρ → SM.StrMap α
+  toStrMap = unsafeCoerce
+
+  fromStrMap ∷ ∀ ρ α. SM.StrMap α → Record ρ
+  fromStrMap = unsafeCoerce
+
+
 
 match
   ∷ ∀ vr cr a vl cl

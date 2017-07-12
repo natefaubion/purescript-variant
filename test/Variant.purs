@@ -3,7 +3,7 @@ module Test.Variant where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Data.Maybe (Maybe(..))
-import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), match, (##), (:+:))
+import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), match, (##), (:+:), mapCase, ($$), variant, downcast)
 import Test.Assert (assert', ASSERT)
 
 type TestVariants =
@@ -45,6 +45,8 @@ test = do
   assert' "foo case" $ match cases foo == "42"
   assert' "bar case" $ match cases bar == "barbar"
   assert' "baz case" $ match cases baz == "TRUE"
+
+  assert' "mapCase" $ "1212" == mapCase (\x → x <> x) cases $$ (downcast $ variant { foo: 12 })
 
   assert' "adhoc cases" $ 132 == foo ## {} :+: { foo: add 90 } :+: { bar: add 12 }
 
