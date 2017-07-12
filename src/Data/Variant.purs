@@ -4,19 +4,104 @@ module Data.Variant
   , prj
   , on
   , case_
+  , match
+  , flipMatch
+  , (##), ($$), (:+:)
+  , class ToFunc
   , default
   , module Exports
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(..))
+
+import Data.Maybe (Maybe(..), fromJust)
+import Data.StrMap as SM
+import Data.Record (unionMerge)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Tuple (Tuple(..))
-import Partial.Unsafe (unsafeCrashWith)
+import Data.Tuple (Tuple(..), fst, snd)
+
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+
+import Type.Row (class RowToList, kind RowList, Cons, Nil, class ListToRow)
+
 import Unsafe.Coerce (unsafeCoerce)
 
 data Variant (a ∷ # Type)
+
+class SingletonRowList (rl ∷ RowList)
+
+instance singletonRowList ∷ SingletonRowList (Cons s a Nil)
+
+variant
+  ∷ ∀ r rl
+  . RowToList r rl
+  ⇒ SingletonRowList rl
+  ⇒ Record r
+  → Variant r
+variant = unsafeCoerce
+
+downcast
+  ∷ ∀ r mx vr
+  . Union r mx vr
+  ⇒ Variant r
+  → Variant vr
+downcast = unsafeCoerce
+
+class ToFunc (inp ∷ RowList) a (out ∷ RowList) | inp a → out, out a → inp
+
+instance
+  nilToFunc
+  ∷ ToFunc Nil a Nil
+
+instance
+  consToFunc
+  ∷ ToFunc inptail a outtail
+  ⇒ ToFunc (Cons s inp inptail) a (Cons s (inp → a) outtail)
+
+match
+  ∷ ∀ vr cr a vl cl
+  . RowToList vr vl
+  ⇒ RowToList cr cl
+  ⇒ ListToRow cl cr
+  ⇒ ListToRow vl vr
+  ⇒ ToFunc vl a cl
+  ⇒ Record cr
+  → Variant vr
+  → a
+match cases var =
+  let
+    unCoerceV ∷ ∀ ω. Variant vr → Tuple String ω
+    unCoerceV = unsafeCoerce
+
+    tagged ∷ ∀ ω. Tuple String ω
+    tagged = unCoerceV var
+
+    unsafeGet ∷ ∀ ω. String → (ω → a)
+    unsafeGet k = unsafePartial fromJust $ SM.lookup k $ unsafeCoerce cases
+
+    func ∷ ∀ ω. ω → a
+    func = unsafeGet $ fst tagged
+
+    res = func $ snd tagged
+  in res
+
+flipMatch
+  ∷ ∀ vr cr a vl cl
+  . RowToList vr vl
+  ⇒ RowToList cr cl
+  ⇒ ListToRow cl cr
+  ⇒ ListToRow vl vr
+  ⇒ ToFunc vl a cl
+  ⇒ Variant vr
+  → Record cr
+  → a
+flipMatch = flip match
+
+infixl 6 flipMatch as ##
+infixr 6 match as $$
+infixr 8 unionMerge as :+:
+
 
 -- | Inject into the variant at a given label.
 -- | ```purescript

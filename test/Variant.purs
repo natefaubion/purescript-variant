@@ -3,7 +3,7 @@ module Test.Variant where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Data.Maybe (Maybe(..))
-import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..))
+import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), match, (##), (:+:))
 import Test.Assert (assert', ASSERT)
 
 type TestVariants =
@@ -30,10 +30,23 @@ bar = inj _bar "bar"
 baz ∷ ∀ r. Variant (baz ∷ Boolean | r)
 baz = inj _baz true
 
+cases ∷ { foo ∷ Int → String, bar ∷ String → String, baz ∷ Boolean → String }
+cases =
+  { foo: show
+  , bar: \x → x <> x
+  , baz: \x → if x then "TRUE" else "false"
+  }
+
 test ∷ Eff (assert ∷ ASSERT) Unit
 test = do
   assert' "prj: Foo" $ prj _foo foo == Just 42
   assert' "prj: !Foo" $ prj _foo bar == Nothing ∷ Maybe Int
+
+  assert' "foo case" $ match cases foo == "42"
+  assert' "bar case" $ match cases bar == "barbar"
+  assert' "baz case" $ match cases baz == "TRUE"
+
+  assert' "adhoc cases" $ 132 == foo ## {} :+: { foo: add 90 } :+: { bar: add 12 }
 
   let
     case1 ∷ Variant TestVariants → String
