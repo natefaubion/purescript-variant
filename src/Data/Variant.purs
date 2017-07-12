@@ -12,6 +12,7 @@ module Data.Variant
   , record
   , downcast
   , class ToFunc
+  , class Matches
   , class SingletonRowList
   , default
   , module Exports
@@ -92,16 +93,22 @@ instance
   ∷ ToFunc inptail a outtail
   ⇒ ToFunc (Cons s inp inptail) a (Cons s (inp → a) outtail)
 
+class Matches (vr ∷ # Type) a (cr ∷ # Type) | vr a → cr, cr → vr a
+
+instance variantRecordElim
+  ∷ ( RowToList vr vl
+    , RowToList cr cl
+    , ToFunc vl a cl
+    , ListToRow vl vr
+    , ListToRow cl cr )
+  ⇒ Matches vr a cr
+
+
+
 mapCase
-  ∷ ∀ vr vl ar al br bl a b
-  . RowToList vr vl
-  ⇒ ListToRow vl vr
-  ⇒ RowToList ar al
-  ⇒ ListToRow al ar
-  ⇒ RowToList br bl
-  ⇒ ListToRow bl br
-  ⇒ ToFunc vl a al
-  ⇒ ToFunc vl b bl
+  ∷ ∀ vr a b ar br
+  . Matches vr a ar
+  ⇒ Matches vr b br
   ⇒ (a → b)
   → Record ar
   → Record br
@@ -114,14 +121,9 @@ mapCase f cases = fromStrMap $ map (f <<< _) $ toStrMap cases
   fromStrMap = unsafeCoerce
 
 
-
 match
-  ∷ ∀ vr cr a vl cl
-  . RowToList vr vl
-  ⇒ RowToList cr cl
-  ⇒ ListToRow cl cr
-  ⇒ ListToRow vl vr
-  ⇒ ToFunc vl a cl
+  ∷ ∀ vr cr a
+  . Matches vr a cr
   ⇒ Record cr
   → Variant vr
   → a
@@ -143,12 +145,8 @@ match cases var =
   in res
 
 flipMatch
-  ∷ ∀ vr cr a vl cl
-  . RowToList vr vl
-  ⇒ RowToList cr cl
-  ⇒ ListToRow cl cr
-  ⇒ ListToRow vl vr
-  ⇒ ToFunc vl a cl
+  ∷ ∀ vr cr a
+  . Matches vr a cr
   ⇒ Variant vr
   → Record cr
   → a
