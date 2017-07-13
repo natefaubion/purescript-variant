@@ -1,16 +1,14 @@
 module Data.Variant
-  -- ( Variant
-  -- , inj
-  -- , prj
-  -- , on
-  -- , case_
-  -- , default
-  -- , module Exports
-  -- ) where
-  ( module Exports
-  , module Data.Variant
-  )
-  where
+  ( Variant
+  , inj
+  , prj
+  , on
+  , case_
+  , default
+  , class VariantEqs, variantEqs
+  , class VariantOrds, variantOrds
+  , module Exports
+  ) where
 
 import Prelude
 import Data.List as L
