@@ -55,3 +55,15 @@ test = do
   assert' "case2: foo" $ case2 foo == "foo: 42"
   assert' "case2: bar" $ case2 bar == "bar: bar"
   assert' "case2: baz" $ case2 baz == "no match"
+
+  assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
+  assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
+  assert' "eq: baz" $ (baz ∷ Variant TestVariants) == baz
+  assert' "notEq: foo" $ (foo ∷ Variant TestVariants) /= inj _foo 53
+  assert' "notEq: bar" $ (foo ∷ Variant TestVariants) /= bar
+
+  assert' "compare: foo EQ" $ compare (foo ∷ Variant TestVariants) foo == EQ
+  assert' "compare: foo LT" $ compare (foo ∷ Variant TestVariants) (inj _foo 53) == LT
+  assert' "compare: foo GT" $ compare (foo ∷ Variant TestVariants) (inj _foo 12) == GT
+  assert' "compare: LT" $ compare bar (foo ∷ Variant TestVariants) == LT
+  assert' "compare: GT" $ compare (foo ∷ Variant TestVariants) bar == GT
