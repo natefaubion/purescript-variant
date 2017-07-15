@@ -28,40 +28,40 @@ instance variantTagsCons ∷ (VariantTags rs, IsSymbol sym) ⇒ VariantTags (R.C
   variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (LProxy ∷ LProxy rs))
 
 lookupEq
-  ∷ ∀ r
-  . L.List String
+  ∷ L.List String
   → L.List (VariantCase → VariantCase → Boolean)
   → Tuple String VariantCase
   → Tuple String VariantCase
   → Boolean
-lookupEq tags eqs (Tuple t1 c1) (Tuple t2 c2) =
-  if t1 == t2
-    then go tags eqs
-    else false
-  where
-  go = case _, _ of
-    L.Cons t ts, L.Cons e es →
-      if t == t1
-        then e c1 c2
-        else go ts es
-    _, _ → unsafeCrashWith "Data.Variant: impossible eq"
+lookupEq tags eqs (Tuple t1 c1) (Tuple t2 c2)
+  | t1 == t2  = lookupBinaryFn "eq" t1 tags eqs c1 c2
+  | otherwise = false
 
 lookupOrd
-  ∷ ∀ r
-  . L.List String
+  ∷ L.List String
   → L.List (VariantCase → VariantCase → Ordering)
   → Tuple String VariantCase
   → Tuple String VariantCase
   → Ordering
 lookupOrd tags ords (Tuple t1 c1) (Tuple t2 c2) =
   case compare t1 t2 of
-    EQ → go tags ords
+    EQ → lookupBinaryFn "compare" t1 tags ords c1 c2
     cp → cp
+
+lookupBinaryFn
+  ∷ ∀ a b
+  . String
+  → String
+  → L.List String
+  → L.List (a → a → b)
+  → a
+  → a
+  → b
+lookupBinaryFn name tag = go
   where
   go = case _, _ of
-    L.Cons t ts, L.Cons c cs →
-      if t == t1
-        then c c1 c2
-        else go ts cs
+    L.Cons t ts, L.Cons f fs
+      | t == tag  → f
+      | otherwise → go ts fs
     _, _ →
-      unsafeCrashWith "Data.Variant: impossible compare"
+      unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
