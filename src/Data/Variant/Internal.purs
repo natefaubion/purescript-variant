@@ -1,8 +1,9 @@
 module Data.Variant.Internal
-  ( LProxy(..)
+  ( RLProxy(..)
   , VariantCase
   , class VariantTags
   , variantTags
+  , lookupTag
   , lookupEq
   , lookupOrd
   ) where
@@ -14,18 +15,29 @@ import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 
-data LProxy (rl ∷ R.RowList) = LProxy
+data RLProxy (rl ∷ R.RowList) = RLProxy
 
 foreign import data VariantCase ∷ Type
 
 class VariantTags (rl ∷ R.RowList) where
-  variantTags ∷ LProxy rl → L.List String
+  variantTags ∷ RLProxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags R.Nil where
   variantTags _ = L.Nil
 
 instance variantTagsCons ∷ (VariantTags rs, IsSymbol sym) ⇒ VariantTags (R.Cons sym a rs) where
-  variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (LProxy ∷ LProxy rs))
+  variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (RLProxy ∷ RLProxy rs))
+
+-- | A specialized lookup function which bails early. Foldable's `elem`
+-- | is always worst-case.
+lookupTag ∷ String → L.List String → Boolean
+lookupTag tag = go
+  where
+  go = case _ of
+    t L.: ts
+      | t == tag → true
+      | otherwise → go ts
+    L.Nil → false
 
 lookupEq
   ∷ L.List String
