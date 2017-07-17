@@ -5,6 +5,8 @@ module Data.Variant
   , on
   , case_
   , default
+  , downcast
+  , upcast
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
   , module Exports
@@ -15,8 +17,8 @@ import Data.List as L
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Tuple (Tuple(..))
-import Data.Variant.Internal (LProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd)
+import Data.Tuple (Tuple(..), fst)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookupTag)
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -100,15 +102,45 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
 
+-- | Every `Variant ra` can be cast to some `Variant rb` as long as `ra` is a
+-- | subset of `rb`.
+downcast
+  ∷ ∀ lt gt rs
+  . Union lt gt rs
+  ⇒ Variant lt
+  → Variant rs
+downcast = unsafeCoerce
+
+-- | A `Variant rb` can be cast to some `Variant ra`, where `ra` is is a subset
+-- | of `rb`, as long as there is proof that the `Variant`'s runtime tag is
+-- | within the subset of `ra`.
+upcast
+  ∷ ∀ lt gt rs rl
+  . R.RowToList lt rl
+  ⇒ VariantTags rl
+  ⇒ Union lt rs gt
+  ⇒ Variant gt
+  → Maybe (Variant lt)
+upcast v =
+  if lookupTag (fst (coerceV v)) (variantTags (RLProxy ∷ RLProxy rl))
+    then Just (coerceR v)
+    else Nothing
+  where
+  coerceV ∷ ∀ a. Variant gt → Tuple String a
+  coerceV = unsafeCoerce
+
+  coerceR ∷ Variant gt → Variant lt
+  coerceR = unsafeCoerce
+
 class VariantEqs (rl ∷ R.RowList) where
-  variantEqs ∷ LProxy rl → L.List (VariantCase → VariantCase → Boolean)
+  variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
 
 instance eqVariantNil ∷ VariantEqs R.Nil where
   variantEqs _ = L.Nil
 
 instance eqVariantCons ∷ (VariantEqs rs, Eq a) ⇒ VariantEqs (R.Cons sym a rs) where
   variantEqs _ =
-    L.Cons (coerceEq eq) (variantEqs (LProxy ∷ LProxy rs))
+    L.Cons (coerceEq eq) (variantEqs (RLProxy ∷ RLProxy rs))
     where
     coerceEq ∷ (a → a → Boolean) → VariantCase → VariantCase → Boolean
     coerceEq = unsafeCoerce
@@ -118,20 +150,20 @@ instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq 
     let
       c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
       c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
-      tags = variantTags (LProxy ∷ LProxy rl)
-      eqs = variantEqs (LProxy ∷ LProxy rl)
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      eqs = variantEqs (RLProxy ∷ RLProxy rl)
     in
       lookupEq tags eqs c1 c2
 
 class VariantOrds (rl ∷ R.RowList) where
-  variantOrds ∷ LProxy rl → L.List (VariantCase → VariantCase → Ordering)
+  variantOrds ∷ RLProxy rl → L.List (VariantCase → VariantCase → Ordering)
 
 instance ordVariantNil ∷ VariantOrds R.Nil where
   variantOrds _ = L.Nil
 
 instance ordVariantCons ∷ (VariantOrds rs, Ord a) ⇒ VariantOrds (R.Cons sym a rs) where
   variantOrds _ =
-    L.Cons (coerceOrd compare) (variantOrds (LProxy ∷ LProxy rs))
+    L.Cons (coerceOrd compare) (variantOrds (RLProxy ∷ RLProxy rs))
     where
     coerceOrd ∷ (a → a → Ordering) → VariantCase → VariantCase → Ordering
     coerceOrd = unsafeCoerce
@@ -141,7 +173,7 @@ instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, Varian
     let
       c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
       c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
-      tags = variantTags (LProxy ∷ LProxy rl)
-      ords = variantOrds (LProxy ∷ LProxy rl)
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      ords = variantOrds (RLProxy ∷ RLProxy rl)
     in
       lookupOrd tags ords c1 c2
