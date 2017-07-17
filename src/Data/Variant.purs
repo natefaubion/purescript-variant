@@ -5,8 +5,8 @@ module Data.Variant
   , on
   , case_
   , default
-  , downcast
-  , upcast
+  , expand
+  , contract
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
   , module Exports
@@ -104,24 +104,24 @@ default a _ = a
 
 -- | Every `Variant ra` can be cast to some `Variant rb` as long as `ra` is a
 -- | subset of `rb`.
-downcast
+expand
   ∷ ∀ lt gt rs
   . Union lt gt rs
   ⇒ Variant lt
   → Variant rs
-downcast = unsafeCoerce
+expand = unsafeCoerce
 
 -- | A `Variant rb` can be cast to some `Variant ra`, where `ra` is is a subset
 -- | of `rb`, as long as there is proof that the `Variant`'s runtime tag is
 -- | within the subset of `ra`.
-upcast
+contract
   ∷ ∀ lt gt rs rl
   . R.RowToList lt rl
   ⇒ VariantTags rl
   ⇒ Union lt rs gt
   ⇒ Variant gt
   → Maybe (Variant lt)
-upcast v =
+contract v =
   if lookupTag (fst (coerceV v)) (variantTags (RLProxy ∷ RLProxy rl))
     then Just (coerceR v)
     else Nothing

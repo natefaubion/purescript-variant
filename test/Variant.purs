@@ -3,7 +3,7 @@ module Test.Variant where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Data.Maybe (Maybe(..), isJust)
-import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), upcast)
+import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), contract)
 import Test.Assert (assert', ASSERT)
 
 type TestVariants =
@@ -68,5 +68,5 @@ test = do
   assert' "compare: LT" $ compare bar (foo ∷ Variant TestVariants) == LT
   assert' "compare: GT" $ compare (foo ∷ Variant TestVariants) bar == GT
 
-  assert' "upcast: pass" $ isJust (upcast (foo ∷ Variant TestVariants) ∷ Maybe (Variant (foo ∷ Int)))
-  assert' "upcast: fail" $ not isJust (upcast (bar ∷ Variant TestVariants) ∷ Maybe (Variant (foo ∷ Int)))
+  assert' "contract: pass" $ isJust (contract (foo ∷ Variant TestVariants) ∷ Maybe (Variant (foo ∷ Int)))
+  assert' "contract: fail" $ not isJust (contract (bar ∷ Variant TestVariants) ∷ Maybe (Variant (foo ∷ Int)))
