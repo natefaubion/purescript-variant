@@ -7,10 +7,8 @@ module Data.Variant
   , default
   , expand
   , contract
-  , RWProxy(..)
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
-  , class Contractable, rowTags
   , module Exports
   ) where
 
@@ -18,9 +16,10 @@ import Prelude
 import Control.Alternative (empty, class Alternative)
 import Data.List as L
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
-import Data.Symbol (SProxy(..)) as Exports
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookupTag)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith)
+import Data.Variant.Internal (class Contractable) as Exports
+import Data.Symbol (SProxy(..)) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -105,45 +104,36 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
 
--- | Every `Variant ra` can be cast to some `Variant rb` as long as `ra` is a
--- | subset of `rb`.
+-- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
+-- | subset of `gt`.
 expand
-  ∷ ∀ ra rb rs
-  . Union ra rs rb
-  ⇒ Variant ra
-  → Variant rb
+  ∷ ∀ lt a gt
+  . Union lt a gt
+  ⇒ Variant lt
+  → Variant gt
 expand = unsafeCoerce
 
--- | A `Variant rb` can be cast to some `Variant ra`, where `ra` is is a subset
--- | of `rb`, as long as there is proof that the `Variant`'s runtime tag is
--- | within the subset of `ra`.
+-- | A `Variant gt` can be cast to some `Variant lt`, where `lt` is is a subset
+-- | of `gt`, as long as there is proof that the `Variant`'s runtime tag is
+-- | within the subset of `lt`.
 contract
-  ∷ ∀ ra rb f
+  ∷ ∀ lt gt f
   . Alternative f
-  ⇒ Contractable rb ra
-  ⇒ Variant rb
-  → f (Variant ra)
+  ⇒ Contractable f gt lt
+  ⇒ Variant gt
+  → f (Variant lt)
 contract v =
-  if lookupTag (fst (coerceV v)) (rowTags (RWProxy ∷ RWProxy rb ra))
-    then pure (coerceR v)
-    else empty
+  contractWith
+    (RProxy ∷ RProxy gt)
+    (RProxy ∷ RProxy lt)
+    (fst $ coerceV v)
+    (coerceR v)
   where
-  coerceV ∷ ∀ a. Variant rb → Tuple String a
+  coerceV ∷ Variant gt → Tuple String VariantCase
   coerceV = unsafeCoerce
 
-  coerceR ∷ Variant rb → Variant ra
+  coerceR ∷ Variant gt → Variant lt
   coerceR = unsafeCoerce
-
-data RWProxy (gt ∷ # Type) (lt ∷ # Type) = RWProxy
-
-class Contractable (gt ∷ # Type) (lt ∷ # Type) where
-  rowTags ∷ RWProxy gt lt → L.List String
-
-instance
-  contractable
-  ∷ (R.RowToList lt ltl, VariantTags ltl, Union lt a gt) ⇒ Contractable gt lt
-  where
-    rowTags _ = variantTags (RLProxy ∷ RLProxy ltl)
 
 class VariantEqs (rl ∷ R.RowList) where
   variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
