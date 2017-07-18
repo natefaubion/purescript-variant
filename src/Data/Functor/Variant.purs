@@ -10,7 +10,7 @@ module Data.Functor.Variant
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(..))
+import Control.Alternative (class Alternative, empty)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Tuple (Tuple(..))
@@ -62,13 +62,14 @@ inj p a = coerceV (Tuple (reflectSymbol p) (FBox map a))
 -- |   _ -> 0
 -- | ```
 prj
-  ∷ ∀ sym f a r1 r2
+  ∷ ∀ sym f a r1 r2 g
   . RowCons sym (FProxy f) r1 r2
+  ⇒ Alternative g
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → VariantF r2 a
-  → Maybe (f a)
-prj p = on p Just (const Nothing)
+  → g (f a)
+prj p = on p pure (const empty)
 
 -- | Attempt to read a variant at a given label by providing branches.
 -- | The failure branch receives the provided variant, but with the label

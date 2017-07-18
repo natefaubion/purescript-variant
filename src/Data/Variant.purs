@@ -7,14 +7,16 @@ module Data.Variant
   , default
   , expand
   , contract
+  , RWProxy(..)
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
+  , class Contractable, rowTags
   , module Exports
   ) where
 
 import Prelude
+import Control.Alternative (empty, class Alternative)
 import Data.List as L
-import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Tuple (Tuple(..), fst)
@@ -49,13 +51,14 @@ inj p a = coerceV (Tuple (reflectSymbol p) a)
 -- |   Nothing -> 0
 -- | ```
 prj
-  ∷ ∀ sym a r1 r2
+  ∷ ∀ sym a r1 r2 f
   . RowCons sym a r1 r2
   ⇒ IsSymbol sym
+  ⇒ Alternative f
   ⇒ SProxy sym
   → Variant r2
-  → Maybe a
-prj p = on p Just (const Nothing)
+  → f a
+prj p = on p pure (const empty)
 
 -- | Attempt to read a variant at a given label by providing branches.
 -- | The failure branch receives the provided variant, but with the label
@@ -115,22 +118,32 @@ expand = unsafeCoerce
 -- | of `rb`, as long as there is proof that the `Variant`'s runtime tag is
 -- | within the subset of `ra`.
 contract
-  ∷ ∀ ra rb rs rl
-  . R.RowToList ra rl
-  ⇒ VariantTags rl
-  ⇒ Union ra rs rb
+  ∷ ∀ ra rb f
+  . Alternative f
+  ⇒ Contractable rb ra
   ⇒ Variant rb
-  → Maybe (Variant ra)
+  → f (Variant ra)
 contract v =
-  if lookupTag (fst (coerceV v)) (variantTags (RLProxy ∷ RLProxy rl))
-    then Just (coerceR v)
-    else Nothing
+  if lookupTag (fst (coerceV v)) (rowTags (RWProxy ∷ RWProxy rb ra))
+    then pure (coerceR v)
+    else empty
   where
   coerceV ∷ ∀ a. Variant rb → Tuple String a
   coerceV = unsafeCoerce
 
   coerceR ∷ Variant rb → Variant ra
   coerceR = unsafeCoerce
+
+data RWProxy (gt ∷ # Type) (lt ∷ # Type) = RWProxy
+
+class Contractable (gt ∷ # Type) (lt ∷ # Type) where
+  rowTags ∷ RWProxy gt lt → L.List String
+
+instance
+  contractable
+  ∷ (R.RowToList lt ltl, VariantTags ltl, Union lt a gt) ⇒ Contractable gt lt
+  where
+    rowTags _ = variantTags (RLProxy ∷ RLProxy ltl)
 
 class VariantEqs (rl ∷ R.RowList) where
   variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
