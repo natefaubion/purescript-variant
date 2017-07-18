@@ -13,12 +13,13 @@ module Data.Variant
   ) where
 
 import Prelude
+import Control.Alternative (empty, class Alternative)
 import Data.List as L
-import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
-import Data.Symbol (SProxy(..)) as Exports
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookupTag)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith)
+import Data.Variant.Internal (class Contractable) as Exports
+import Data.Symbol (SProxy(..)) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -49,13 +50,14 @@ inj p a = coerceV (Tuple (reflectSymbol p) a)
 -- |   Nothing -> 0
 -- | ```
 prj
-  ∷ ∀ sym a r1 r2
+  ∷ ∀ sym a r1 r2 f
   . RowCons sym a r1 r2
   ⇒ IsSymbol sym
+  ⇒ Alternative f
   ⇒ SProxy sym
   → Variant r2
-  → Maybe a
-prj p = on p Just (const Nothing)
+  → f a
+prj p = on p pure (const empty)
 
 -- | Attempt to read a variant at a given label by providing branches.
 -- | The failure branch receives the provided variant, but with the label
@@ -102,34 +104,35 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
 
--- | Every `Variant ra` can be cast to some `Variant rb` as long as `ra` is a
--- | subset of `rb`.
+-- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
+-- | subset of `gt`.
 expand
-  ∷ ∀ ra rb rs
-  . Union ra rs rb
-  ⇒ Variant ra
-  → Variant rb
+  ∷ ∀ lt a gt
+  . Union lt a gt
+  ⇒ Variant lt
+  → Variant gt
 expand = unsafeCoerce
 
--- | A `Variant rb` can be cast to some `Variant ra`, where `ra` is is a subset
--- | of `rb`, as long as there is proof that the `Variant`'s runtime tag is
--- | within the subset of `ra`.
+-- | A `Variant gt` can be cast to some `Variant lt`, where `lt` is is a subset
+-- | of `gt`, as long as there is proof that the `Variant`'s runtime tag is
+-- | within the subset of `lt`.
 contract
-  ∷ ∀ ra rb rs rl
-  . R.RowToList ra rl
-  ⇒ VariantTags rl
-  ⇒ Union ra rs rb
-  ⇒ Variant rb
-  → Maybe (Variant ra)
+  ∷ ∀ lt gt f
+  . Alternative f
+  ⇒ Contractable gt lt
+  ⇒ Variant gt
+  → f (Variant lt)
 contract v =
-  if lookupTag (fst (coerceV v)) (variantTags (RLProxy ∷ RLProxy rl))
-    then Just (coerceR v)
-    else Nothing
+  contractWith
+    (RProxy ∷ RProxy gt)
+    (RProxy ∷ RProxy lt)
+    (fst $ coerceV v)
+    (coerceR v)
   where
-  coerceV ∷ ∀ a. Variant rb → Tuple String a
+  coerceV ∷ Variant gt → Tuple String VariantCase
   coerceV = unsafeCoerce
 
-  coerceR ∷ Variant rb → Variant ra
+  coerceR ∷ Variant gt → Variant lt
   coerceR = unsafeCoerce
 
 class VariantEqs (rl ∷ R.RowList) where

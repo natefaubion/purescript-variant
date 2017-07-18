@@ -5,15 +5,18 @@ module Data.Functor.Variant
   , prj
   , on
   , case_
+  , contract
   , default
   , module Exports
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(..))
+import Control.Alternative (class Alternative, empty)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), fst)
+import Data.Variant.Internal (class Contractable, contractWith, VariantCase, RProxy(..))
+import Data.Variant.Internal (class Contractable) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -62,13 +65,14 @@ inj p a = coerceV (Tuple (reflectSymbol p) (FBox map a))
 -- |   _ -> 0
 -- | ```
 prj
-  ∷ ∀ sym f a r1 r2
+  ∷ ∀ sym f a r1 r2 g
   . RowCons sym (FProxy f) r1 r2
+  ⇒ Alternative g
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → VariantF r2 a
-  → Maybe (f a)
-prj p = on p Just (const Nothing)
+  → g (f a)
+prj p = on p pure (const empty)
 
 -- | Attempt to read a variant at a given label by providing branches.
 -- | The failure branch receives the provided variant, but with the label
@@ -114,3 +118,34 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 default ∷ ∀ a b r. a → VariantF r b → a
 default a _ = a
+
+-- | Every `VariantF lt a` can be cast to some `VariantF gt a` as long as `lt` is a
+-- | subset of `gt`.
+expand
+  ∷ ∀ lt mix gt a
+  . Union lt mix gt
+  ⇒ VariantF lt a
+  → VariantF gt a
+expand = unsafeCoerce
+
+-- | A `VariantF gt a` can be cast to some `VariantF lt a`, where `lt` is is a subset
+-- | of `gt`, as long as there is proof that the `VariantF`'s runtime tag is
+-- | within the subset of `lt`.
+contract
+  ∷ ∀ lt gt f a
+  . Alternative f
+  ⇒ Contractable gt lt
+  ⇒ VariantF gt a
+  → f (VariantF lt a)
+contract v =
+  contractWith
+    (RProxy ∷ RProxy gt)
+    (RProxy ∷ RProxy lt)
+    (fst $ coerceV v)
+    (coerceR v)
+  where
+  coerceV ∷ VariantF gt a → Tuple String VariantCase
+  coerceV = unsafeCoerce
+
+  coerceR ∷ VariantF gt a → VariantF lt a
+  coerceR = unsafeCoerce

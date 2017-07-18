@@ -1,19 +1,23 @@
 module Data.Variant.Internal
   ( RLProxy(..)
+  , RProxy(..)
   , VariantCase
-  , class VariantTags
-  , variantTags
+  , class VariantTags, variantTags
+  , class Contractable, contractWith
   , lookupTag
   , lookupEq
   , lookupOrd
   ) where
 
 import Prelude
+import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
+
+data RProxy (r ∷ # Type) = RProxy
 
 data RLProxy (rl ∷ R.RowList) = RLProxy
 
@@ -77,3 +81,17 @@ lookupBinaryFn name tag = go
       | otherwise → go ts fs
     _, _ →
       unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
+
+class Contractable gt lt where
+  contractWith ∷ ∀ f a. Alternative f ⇒ RProxy gt → RProxy lt → String → a → f a
+
+instance contractWithInstance
+  ∷ ( R.RowToList lt ltl
+    , Union lt a gt
+    , VariantTags ltl
+    )
+  ⇒ Contractable gt lt
+  where
+  contractWith _ _ tag a
+    | lookupTag tag (variantTags (RLProxy ∷ RLProxy ltl)) = pure a
+    | otherwise = empty

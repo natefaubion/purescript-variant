@@ -2,9 +2,10 @@ module Test.VariantF where
 
 import Prelude
 import Control.Monad.Eff (Eff)
+import Data.List as L
 import Data.Either (Either(..))
-import Data.Functor.Variant (VariantF, on, case_, default, inj, prj, SProxy(..), FProxy)
-import Data.Maybe (Maybe(..))
+import Data.Functor.Variant (VariantF, on, case_, default, inj, prj, SProxy(..), FProxy, contract)
+import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
 import Test.Assert (assert', ASSERT)
 
@@ -63,3 +64,11 @@ test = do
     case3 = case_ # on _foo (\a → "foo: " <> show a)
 
   assert' "map" $ case3 (show <$> foo) == "foo: (Just \"42\")"
+
+  assert' "contract: pass"
+    $ isJust
+    $ contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ FProxy Maybe) Int)
+
+  assert' "contract: fail"
+    $ L.null
+    $ contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ FProxy Maybe) Int)
