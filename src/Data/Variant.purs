@@ -2,14 +2,12 @@ module Data.Variant
   ( Variant
   , inj
   , prj
-  , elim
+  , match
   , on
   , case_
   , default
   , expand
   , contract
-  , class VariantRecordElim
-  , class VariantMatch
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
   , module Exports
@@ -21,15 +19,12 @@ import Data.List as L
 import Data.Maybe (fromJust)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VRMatching)
 import Data.Variant.Internal (class Contractable) as Exports
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Tuple (Tuple(..))
-import Data.Variant.Internal (LProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
-import Type.Row (class RowToList, class ListToRow)
 import Data.StrMap as SM
 
 foreign import data Variant ∷ # Type → Type
@@ -90,59 +85,25 @@ on p f g r =
   coerceR ∷ Variant r2 → Variant r1
   coerceR = unsafeCoerce
 
--- | Type class that matches a row for a `record` that will eliminate a row for
--- | a `variant`, producing a `result` of the specified type. Just a wrapper for
--- | `VariantMatch` to convert `RowToList` and vice versa.
-class VariantRecordElim
-    (variant ∷ # Type)
-    (record ∷ # Type)
-    result
-  | variant result → record
-  , record → variant result
-instance variantRecordElim
-  ∷ ( RowToList variant vlist
-    , RowToList record rlist
-    , VariantMatch vlist rlist result
-    , ListToRow vlist variant
-    , ListToRow rlist record )
-  ⇒ VariantRecordElim variant record result
-
--- | Checks that a `RowList` matches the argument to be given to the function
--- | in the other `RowList` with the same label, such that it will produce the
--- | result type.
-class VariantMatch
-    (vlist ∷ R.RowList)
-    (rlist ∷ R.RowList)
-    result
-  | vlist result → rlist
-  , rlist → vlist result
-instance variantMatchNil
-  ∷ VariantMatch R.Nil R.Nil r
-instance variantMatchCons
-  ∷ VariantMatch v r res
-  ⇒ VariantMatch (R.Cons sym a v) (R.Cons sym (a → res) r) res
-
--- | Eliminate a `variant` with a `record` containing methods to handle each
--- | case and produce a unified `result`.
+-- | Match a `variant` with a `record` containing methods to handle each case
+-- | to produce a `result`.
 -- |
 -- | This means that if `variant` contains a row of type `a`, a row with the
 -- | same label must have type `a -> b` in `record`, where `b` is the same
 -- | `result` type for every row of `record`.
 -- |
--- | Methods in `record` cannot have any constraints, due to limitations in
--- | PureScript's type system. This means that class methods must be given a
--- | concrete type, as in `{ foo: show :: Int -> String }`. Other functions
--- | using `forall` will still work if they do not contain constraints, but note
--- | that even `id` must be given a type annotation to be used in this way,
--- | since it normally depends on `Category`: use `id :: forall a. a -> a` not
--- | `id :: forall a c. Category c => c a a`.
-elim
+-- | Polymorphic methods in `record` may create problems with the type system
+-- | if the polymorphism is not fully generalized to the whole record type
+-- | or if not all polymorphic variables are specified in usage. When in doubt,
+-- | label methods with specific types, such as `show :: Int -> String`, or
+-- | give the whole record an appropriate type.
+match
   ∷ ∀ variant record result
-  . VariantRecordElim variant record result
+  . VRMatching variant record result
   ⇒ Variant variant
   → Record record
   → result
-elim v r =
+match v r =
   case coerceV v of
     Tuple tag a →
       a # unsafePartial fromJust

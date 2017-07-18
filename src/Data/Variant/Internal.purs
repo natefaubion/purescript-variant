@@ -4,6 +4,8 @@ module Data.Variant.Internal
   , VariantCase
   , class VariantTags, variantTags
   , class Contractable, contractWith
+  , class VRMatching
+  , class RLMatch
   , lookupTag
   , lookupEq
   , lookupOrd
@@ -20,6 +22,38 @@ import Type.Row as R
 data RProxy (r ∷ # Type) = RProxy
 
 data RLProxy (rl ∷ R.RowList) = RLProxy
+
+-- | Type class that matches a row for a `record` that will eliminate a row for
+-- | a `variant`, producing a `result` of the specified type. Just a wrapper for
+-- | `RLMatch` to convert `RowToList` and vice versa.
+class VRMatching
+    (variant ∷ # Type)
+    (record ∷ # Type)
+    result
+  | variant result → record
+  , record → variant result
+instance variantRecordElim
+  ∷ ( R.RowToList variant vlist
+    , R.RowToList record rlist
+    , RLMatch vlist rlist result
+    , R.ListToRow vlist variant
+    , R.ListToRow rlist record )
+  ⇒ VRMatching variant record result
+
+-- | Checks that a `RowList` matches the argument to be given to the function
+-- | in the other `RowList` with the same label, such that it will produce the
+-- | result type.
+class RLMatch
+    (vlist ∷ R.RowList)
+    (rlist ∷ R.RowList)
+    result
+  | vlist result → rlist
+  , rlist → vlist result
+instance variantMatchNil
+  ∷ RLMatch R.Nil R.Nil r
+instance variantMatchCons
+  ∷ RLMatch v r res
+  ⇒ RLMatch (R.Cons sym a v) (R.Cons sym (a → res) r) res
 
 foreign import data VariantCase ∷ Type
 
