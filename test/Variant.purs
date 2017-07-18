@@ -67,3 +67,15 @@ test = do
   assert' "elim': foo" $ elim' foo == "foo: 42"
   assert' "elim': bar" $ elim' bar == "bar: bar"
   assert' "elim': baz" $ elim' baz == "baz: true"
+
+  assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
+  assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
+  assert' "eq: baz" $ (baz ∷ Variant TestVariants) == baz
+  assert' "notEq: foo" $ (foo ∷ Variant TestVariants) /= inj _foo 53
+  assert' "notEq: bar" $ (foo ∷ Variant TestVariants) /= bar
+
+  assert' "compare: foo EQ" $ compare (foo ∷ Variant TestVariants) foo == EQ
+  assert' "compare: foo LT" $ compare (foo ∷ Variant TestVariants) (inj _foo 53) == LT
+  assert' "compare: foo GT" $ compare (foo ∷ Variant TestVariants) (inj _foo 12) == GT
+  assert' "compare: LT" $ compare bar (foo ∷ Variant TestVariants) == LT
+  assert' "compare: GT" $ compare (foo ∷ Variant TestVariants) bar == GT

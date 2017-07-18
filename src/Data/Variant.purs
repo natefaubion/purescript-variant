@@ -8,21 +8,25 @@ module Data.Variant
   , default
   , class VariantRecordElim
   , class VariantMatch
+  , class VariantEqs, variantEqs
+  , class VariantOrds, variantOrds
   , module Exports
   ) where
 
 import Prelude
+import Data.List as L
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Tuple (Tuple(..))
+import Data.Variant.Internal (LProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
-import Unsafe.Coerce (unsafeCoerce)
 import Type.Row as R
+import Unsafe.Coerce (unsafeCoerce)
 import Type.Row (class RowToList, class ListToRow)
 import Data.StrMap as SM
 
-data Variant (a ∷ # Type)
+foreign import data Variant ∷ # Type → Type
 
 -- | Inject into the variant at a given label.
 -- | ```purescript
@@ -164,3 +168,49 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
+
+class VariantEqs (rl ∷ R.RowList) where
+  variantEqs ∷ LProxy rl → L.List (VariantCase → VariantCase → Boolean)
+
+instance eqVariantNil ∷ VariantEqs R.Nil where
+  variantEqs _ = L.Nil
+
+instance eqVariantCons ∷ (VariantEqs rs, Eq a) ⇒ VariantEqs (R.Cons sym a rs) where
+  variantEqs _ =
+    L.Cons (coerceEq eq) (variantEqs (LProxy ∷ LProxy rs))
+    where
+    coerceEq ∷ (a → a → Boolean) → VariantCase → VariantCase → Boolean
+    coerceEq = unsafeCoerce
+
+instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq (Variant r) where
+  eq v1 v2 =
+    let
+      c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
+      c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
+      tags = variantTags (LProxy ∷ LProxy rl)
+      eqs = variantEqs (LProxy ∷ LProxy rl)
+    in
+      lookupEq tags eqs c1 c2
+
+class VariantOrds (rl ∷ R.RowList) where
+  variantOrds ∷ LProxy rl → L.List (VariantCase → VariantCase → Ordering)
+
+instance ordVariantNil ∷ VariantOrds R.Nil where
+  variantOrds _ = L.Nil
+
+instance ordVariantCons ∷ (VariantOrds rs, Ord a) ⇒ VariantOrds (R.Cons sym a rs) where
+  variantOrds _ =
+    L.Cons (coerceOrd compare) (variantOrds (LProxy ∷ LProxy rs))
+    where
+    coerceOrd ∷ (a → a → Ordering) → VariantCase → VariantCase → Ordering
+    coerceOrd = unsafeCoerce
+
+instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl) ⇒ Ord (Variant r) where
+  compare v1 v2 =
+    let
+      c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
+      c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
+      tags = variantTags (LProxy ∷ LProxy rl)
+      ords = variantOrds (LProxy ∷ LProxy rl)
+    in
+      lookupOrd tags ords c1 c2
