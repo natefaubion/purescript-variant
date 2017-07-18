@@ -1,31 +1,47 @@
 module Data.Variant.Internal
-  ( LProxy(..)
+  ( RLProxy(..)
+  , RProxy(..)
   , VariantCase
-  , class VariantTags
-  , variantTags
+  , class VariantTags, variantTags
+  , class Contractable, contractWith
+  , lookupTag
   , lookupEq
   , lookupOrd
   ) where
 
 import Prelude
+import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 
-data LProxy (rl ∷ R.RowList) = LProxy
+data RProxy (r ∷ # Type) = RProxy
+
+data RLProxy (rl ∷ R.RowList) = RLProxy
 
 foreign import data VariantCase ∷ Type
 
 class VariantTags (rl ∷ R.RowList) where
-  variantTags ∷ LProxy rl → L.List String
+  variantTags ∷ RLProxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags R.Nil where
   variantTags _ = L.Nil
 
 instance variantTagsCons ∷ (VariantTags rs, IsSymbol sym) ⇒ VariantTags (R.Cons sym a rs) where
-  variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (LProxy ∷ LProxy rs))
+  variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (RLProxy ∷ RLProxy rs))
+
+-- | A specialized lookup function which bails early. Foldable's `elem`
+-- | is always worst-case.
+lookupTag ∷ String → L.List String → Boolean
+lookupTag tag = go
+  where
+  go = case _ of
+    t L.: ts
+      | t == tag → true
+      | otherwise → go ts
+    L.Nil → false
 
 lookupEq
   ∷ L.List String
@@ -65,3 +81,17 @@ lookupBinaryFn name tag = go
       | otherwise → go ts fs
     _, _ →
       unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
+
+class Contractable gt lt where
+  contractWith ∷ ∀ f a. Alternative f ⇒ RProxy gt → RProxy lt → String → a → f a
+
+instance contractWithInstance
+  ∷ ( R.RowToList lt ltl
+    , Union lt a gt
+    , VariantTags ltl
+    )
+  ⇒ Contractable gt lt
+  where
+  contractWith _ _ tag a
+    | lookupTag tag (variantTags (RLProxy ∷ RLProxy ltl)) = pure a
+    | otherwise = empty

@@ -6,6 +6,8 @@ module Data.Variant
   , on
   , case_
   , default
+  , expand
+  , contract
   , class VariantRecordElim
   , class VariantMatch
   , class VariantEqs, variantEqs
@@ -14,9 +16,13 @@ module Data.Variant
   ) where
 
 import Prelude
+import Control.Alternative (empty, class Alternative)
 import Data.List as L
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (fromJust)
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
+import Data.Tuple (Tuple(..), fst)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith)
+import Data.Variant.Internal (class Contractable) as Exports
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Tuple (Tuple(..))
 import Data.Variant.Internal (LProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd)
@@ -52,13 +58,14 @@ inj p a = coerceV (Tuple (reflectSymbol p) a)
 -- |   Nothing -> 0
 -- | ```
 prj
-  ∷ ∀ sym a r1 r2
+  ∷ ∀ sym a r1 r2 f
   . RowCons sym a r1 r2
   ⇒ IsSymbol sym
+  ⇒ Alternative f
   ⇒ SProxy sym
   → Variant r2
-  → Maybe a
-prj p = on p Just (const Nothing)
+  → f a
+prj p = on p pure (const empty)
 
 -- | Attempt to read a variant at a given label by providing branches.
 -- | The failure branch receives the provided variant, but with the label
@@ -169,15 +176,46 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
 
+-- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
+-- | subset of `gt`.
+expand
+  ∷ ∀ lt a gt
+  . Union lt a gt
+  ⇒ Variant lt
+  → Variant gt
+expand = unsafeCoerce
+
+-- | A `Variant gt` can be cast to some `Variant lt`, where `lt` is is a subset
+-- | of `gt`, as long as there is proof that the `Variant`'s runtime tag is
+-- | within the subset of `lt`.
+contract
+  ∷ ∀ lt gt f
+  . Alternative f
+  ⇒ Contractable gt lt
+  ⇒ Variant gt
+  → f (Variant lt)
+contract v =
+  contractWith
+    (RProxy ∷ RProxy gt)
+    (RProxy ∷ RProxy lt)
+    (fst $ coerceV v)
+    (coerceR v)
+  where
+  coerceV ∷ Variant gt → Tuple String VariantCase
+  coerceV = unsafeCoerce
+
+  coerceR ∷ Variant gt → Variant lt
+  coerceR = unsafeCoerce
+
 class VariantEqs (rl ∷ R.RowList) where
-  variantEqs ∷ LProxy rl → L.List (VariantCase → VariantCase → Boolean)
+  variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
 
 instance eqVariantNil ∷ VariantEqs R.Nil where
   variantEqs _ = L.Nil
 
 instance eqVariantCons ∷ (VariantEqs rs, Eq a) ⇒ VariantEqs (R.Cons sym a rs) where
   variantEqs _ =
-    L.Cons (coerceEq eq) (variantEqs (LProxy ∷ LProxy rs))
+    L.Cons (coerceEq eq) (variantEqs (RLProxy ∷ RLProxy rs))
     where
     coerceEq ∷ (a → a → Boolean) → VariantCase → VariantCase → Boolean
     coerceEq = unsafeCoerce
@@ -187,20 +225,20 @@ instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq 
     let
       c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
       c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
-      tags = variantTags (LProxy ∷ LProxy rl)
-      eqs = variantEqs (LProxy ∷ LProxy rl)
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      eqs = variantEqs (RLProxy ∷ RLProxy rl)
     in
       lookupEq tags eqs c1 c2
 
 class VariantOrds (rl ∷ R.RowList) where
-  variantOrds ∷ LProxy rl → L.List (VariantCase → VariantCase → Ordering)
+  variantOrds ∷ RLProxy rl → L.List (VariantCase → VariantCase → Ordering)
 
 instance ordVariantNil ∷ VariantOrds R.Nil where
   variantOrds _ = L.Nil
 
 instance ordVariantCons ∷ (VariantOrds rs, Ord a) ⇒ VariantOrds (R.Cons sym a rs) where
   variantOrds _ =
-    L.Cons (coerceOrd compare) (variantOrds (LProxy ∷ LProxy rs))
+    L.Cons (coerceOrd compare) (variantOrds (RLProxy ∷ RLProxy rs))
     where
     coerceOrd ∷ (a → a → Ordering) → VariantCase → VariantCase → Ordering
     coerceOrd = unsafeCoerce
@@ -210,7 +248,7 @@ instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, Varian
     let
       c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
       c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
-      tags = variantTags (LProxy ∷ LProxy rl)
-      ords = variantOrds (LProxy ∷ LProxy rl)
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      ords = variantOrds (RLProxy ∷ RLProxy rl)
     in
       lookupOrd tags ords c1 c2
