@@ -134,7 +134,7 @@ expand = unsafeCoerce
 contract
   ∷ ∀ lt gt f a
   . Alternative f
-  ⇒ Contractable f gt lt
+  ⇒ Contractable gt lt
   ⇒ VariantF gt a
   → f (VariantF lt a)
 contract v =

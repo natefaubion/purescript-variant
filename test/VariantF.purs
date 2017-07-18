@@ -2,7 +2,7 @@ module Test.VariantF where
 
 import Prelude
 import Control.Monad.Eff (Eff)
-import Data.Array as Arr
+import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Functor.Variant (VariantF, on, case_, default, inj, prj, SProxy(..), FProxy, contract)
 import Data.Maybe (Maybe(..), isJust)
@@ -70,5 +70,5 @@ test = do
     $ contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ FProxy Maybe) Int)
 
   assert' "contract: fail"
-    $ Arr.null
+    $ Array.null
     $ contract (bar ∷ VariantF TestVariants Int) ∷ Array (VariantF (foo ∷ FProxy Maybe) Int)
