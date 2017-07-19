@@ -2,10 +2,10 @@ module Data.Variant
   ( Variant
   , inj
   , prj
-  , match
   , on
   , case_
   , default
+  , match
   , expand
   , contract
   , class VariantEqs, variantEqs
@@ -85,6 +85,28 @@ on p f g r =
   coerceR ∷ Variant r2 → Variant r1
   coerceR = unsafeCoerce
 
+-- | Combinator for exhaustive pattern matching.
+-- | ```purescript
+-- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
+-- | caseFn = case_
+-- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
+-- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
+-- |  # on (SProxy :: SProxy "baz") (\baz -> "Baz: " <> show baz)
+-- | ```
+case_ ∷ ∀ a. Variant () → a
+case_ r = unsafeCrashWith case unsafeCoerce r of
+  Tuple tag _ → "Data.Variant: pattern match failure [" <> tag <> "]"
+
+-- | Combinator for partial matching with a default value in case of failure.
+-- | ```purescript
+-- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
+-- | caseFn = default "No match"
+-- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
+-- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
+-- | ```
+default ∷ ∀ a r. a → Variant r → a
+default a _ = a
+
 -- | Match a `variant` with a `record` containing methods to handle each case
 -- | to produce a `result`.
 -- |
@@ -114,28 +136,6 @@ match v r =
 
   coerceR ∷ ∀ a. Record record → SM.StrMap a
   coerceR = unsafeCoerce
-
--- | Combinator for exhaustive pattern matching.
--- | ```purescript
--- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
--- | caseFn = case_
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
--- |  # on (SProxy :: SProxy "baz") (\baz -> "Baz: " <> show baz)
--- | ```
-case_ ∷ ∀ a. Variant () → a
-case_ r = unsafeCrashWith case unsafeCoerce r of
-  Tuple tag _ → "Data.Variant: pattern match failure [" <> tag <> "]"
-
--- | Combinator for partial matching with a default value in case of failure.
--- | ```purescript
--- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
--- | caseFn = default "No match"
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
--- | ```
-default ∷ ∀ a r. a → Variant r → a
-default a _ = a
 
 -- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
 -- | subset of `gt`.
