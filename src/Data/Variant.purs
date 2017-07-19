@@ -122,10 +122,10 @@ default a _ = a
 match
   ∷ ∀ variant record result
   . VRMatching variant record result
-  ⇒ Variant variant
-  → Record record
+  ⇒ Record record
+  → Variant variant
   → result
-match v r =
+match r v =
   case coerceV v of
     Tuple tag a →
       a # unsafePartial fromJust

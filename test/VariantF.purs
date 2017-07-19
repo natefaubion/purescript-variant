@@ -67,7 +67,7 @@ test = do
 
   let
     match' ∷ VariantF TestVariants Int → String
-    match' = flip match
+    match' = match
       { foo: \a → "foo: " <> show a
       , bar: \a → "bar: " <> show a
       , baz: \a → "baz: " <> show a

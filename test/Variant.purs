@@ -59,7 +59,7 @@ test = do
 
   let
     match' :: Variant TestVariants -> String
-    match' v = match v
+    match' = match
       { foo: \a -> "foo: " <> show a
       , bar: \a -> "bar: " <> a
       , baz: \a -> "baz: " <> show a

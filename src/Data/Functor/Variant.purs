@@ -136,10 +136,10 @@ default a _ = a
 match
   ∷ ∀ variant record typearg result
   . VRFMatching variant record typearg result
-  ⇒ VariantF variant typearg
-  → Record record
+  ⇒ Record record
+  → VariantF variant typearg
   → result
-match v r =
+match r v =
   case coerceV v of
     Tuple tag (FBox _ a) →
       a # unsafePartial fromJust
