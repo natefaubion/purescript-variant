@@ -35,8 +35,7 @@ class VRMatching
     (variant ∷ # Type)
     (record ∷ # Type)
     result
-  | variant result → record
-  , record → variant result
+  | → variant record result
 instance variantRecordMatching
   ∷ ( R.RowToList variant vlist
     , R.RowToList record rlist
@@ -52,7 +51,7 @@ class RLMatch
     (vlist ∷ R.RowList)
     (rlist ∷ R.RowList)
     result
-  | vlist result → rlist
+  | vlist → rlist result
   , rlist → vlist result
 instance variantMatchNil
   ∷ RLMatch R.Nil R.Nil r
@@ -65,8 +64,7 @@ class VRFMatching
     (record ∷ # Type)
     typearg
     result
-  | variant typearg result → record
-  , record → variant typearg result
+  | → variant record typearg result
 instance variantFRecordMatching
   ∷ ( R.RowToList variant vlist
     , R.RowToList record rlist
@@ -83,7 +81,7 @@ class RLFMatch
     (rlist ∷ R.RowList)
     typearg
     result
-  | vlist typearg result → rlist
+  | vlist → rlist typearg result
   , rlist → vlist typearg result
 instance variantFMatchNil
   ∷ RLFMatch R.Nil R.Nil a r
