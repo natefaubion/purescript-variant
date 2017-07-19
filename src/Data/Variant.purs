@@ -111,8 +111,8 @@ default a _ = a
 -- | to produce a `result`.
 -- |
 -- | This means that if `variant` contains a row of type `a`, a row with the
--- | same label must have type `a -> b` in `record`, where `b` is the same
--- | `result` type for every row of `record`.
+-- | same label must have type `a -> result` in `record`, where `result` is the
+-- | same type for every row of `record`.
 -- |
 -- | Polymorphic methods in `record` may create problems with the type system
 -- | if the polymorphism is not fully generalized to the whole record type

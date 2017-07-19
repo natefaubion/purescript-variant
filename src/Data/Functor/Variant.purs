@@ -1,23 +1,27 @@
 module Data.Functor.Variant
   ( VariantF
-  , FProxy(..)
   , inj
   , prj
   , on
   , case_
-  , contract
   , default
+  , match
+  , expand
+  , contract
   , module Exports
   ) where
 
 import Prelude
+
 import Control.Alternative (class Alternative, empty)
-import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
+import Data.Maybe (fromJust)
+import Data.StrMap as SM
 import Data.Symbol (SProxy(..)) as Exports
+import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (class Contractable, contractWith, VariantCase, RProxy(..))
-import Data.Variant.Internal (class Contractable) as Exports
-import Partial.Unsafe (unsafeCrashWith)
+import Data.Variant.Internal (class Contractable, contractWith, VariantCase, class VRFMatching, RProxy(..), FProxy)
+import Data.Variant.Internal (class Contractable, FProxy(..)) as Exports
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Unsafe.Coerce (unsafeCoerce)
 
 data FBox (f ∷ Type → Type) a = FBox (∀ x y. (x → y) → f x → f y) (f a)
@@ -37,8 +41,6 @@ instance functorVariantF ∷ Functor (VariantF r) where
 
     coerceV ∷ ∀ f a. Tuple String (FBox f a) → VariantF r a
     coerceV = unsafeCoerce
-
-data FProxy (a ∷ Type → Type) = FProxy
 
 -- | Inject into the variant at a given label.
 -- | ```purescript
@@ -118,6 +120,36 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 default ∷ ∀ a b r. a → VariantF r b → a
 default a _ = a
+
+-- | Match a `variant` with a `record` containing methods to handle each case
+-- | to produce a `result`.
+-- |
+-- | This means that if `variant` contains a row of type `FProxy f`, a row with
+-- | the same label must have type `f a -> result` in `record`, where `result`
+-- | is the same type for every row of `record`.
+-- |
+-- | Polymorphic methods in `record` may create problems with the type system
+-- | if the polymorphism is not fully generalized to the whole record type
+-- | or if not all polymorphic variables are specified in usage. When in doubt,
+-- | label methods with specific types, such as `show :: Int -> String`, or
+-- | give the whole record an appropriate type.
+match
+  ∷ ∀ variant record typearg result
+  . VRFMatching variant record typearg result
+  ⇒ VariantF variant typearg
+  → Record record
+  → result
+match v r =
+  case coerceV v of
+    Tuple tag (FBox _ a) →
+      a # unsafePartial fromJust
+        (SM.lookup tag (coerceR r))
+  where
+  coerceV ∷ ∀ f. VariantF variant typearg → Tuple String (FBox f typearg)
+  coerceV = unsafeCoerce
+
+  coerceR ∷ ∀ a. Record record → SM.StrMap a
+  coerceR = unsafeCoerce
 
 -- | Every `VariantF lt a` can be cast to some `VariantF gt a` as long as `lt` is a
 -- | subset of `gt`.

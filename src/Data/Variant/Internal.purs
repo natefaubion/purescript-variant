@@ -1,11 +1,14 @@
 module Data.Variant.Internal
   ( RLProxy(..)
   , RProxy(..)
+  , FProxy(..)
   , VariantCase
   , class VariantTags, variantTags
   , class Contractable, contractWith
   , class VRMatching
   , class RLMatch
+  , class VRFMatching
+  , class RLFMatch
   , lookupTag
   , lookupEq
   , lookupOrd
@@ -23,6 +26,8 @@ data RProxy (r ∷ # Type) = RProxy
 
 data RLProxy (rl ∷ R.RowList) = RLProxy
 
+data FProxy (a ∷ Type → Type) = FProxy
+
 -- | Type class that matches a row for a `record` that will eliminate a row for
 -- | a `variant`, producing a `result` of the specified type. Just a wrapper for
 -- | `RLMatch` to convert `RowToList` and vice versa.
@@ -32,7 +37,7 @@ class VRMatching
     result
   | variant result → record
   , record → variant result
-instance variantRecordElim
+instance variantRecordMatching
   ∷ ( R.RowToList variant vlist
     , R.RowToList record rlist
     , RLMatch vlist rlist result
@@ -54,6 +59,37 @@ instance variantMatchNil
 instance variantMatchCons
   ∷ RLMatch v r res
   ⇒ RLMatch (R.Cons sym a v) (R.Cons sym (a → res) r) res
+
+class VRFMatching
+    (variant ∷ # Type)
+    (record ∷ # Type)
+    typearg
+    result
+  | variant typearg result → record
+  , record → variant typearg result
+instance variantFRecordMatching
+  ∷ ( R.RowToList variant vlist
+    , R.RowToList record rlist
+    , RLFMatch vlist rlist typearg result
+    , R.ListToRow vlist variant
+    , R.ListToRow rlist record )
+  ⇒ VRFMatching variant record typearg result
+
+-- | Checks that a `RowList` matches the argument to be given to the function
+-- | in the other `RowList` with the same label, such that it will produce the
+-- | result type.
+class RLFMatch
+    (vlist ∷ R.RowList)
+    (rlist ∷ R.RowList)
+    typearg
+    result
+  | vlist typearg result → rlist
+  , rlist → vlist typearg result
+instance variantFMatchNil
+  ∷ RLFMatch R.Nil R.Nil a r
+instance variantFMatchCons
+  ∷ RLFMatch v r a res
+  ⇒ RLFMatch (R.Cons sym (FProxy f) v) (R.Cons sym (f a → res) r) a res
 
 foreign import data VariantCase ∷ Type
 
