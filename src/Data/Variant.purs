@@ -14,18 +14,17 @@ module Data.Variant
   ) where
 
 import Prelude
+
 import Control.Alternative (empty, class Alternative)
 import Data.List as L
-import Data.Maybe (fromJust)
+import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VRMatching)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VRMatching, unsafeGet)
 import Data.Variant.Internal (class Contractable) as Exports
-import Data.Symbol (SProxy(..)) as Exports
-import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
-import Data.StrMap as SM
 
 foreign import data Variant ∷ # Type → Type
 
@@ -128,14 +127,10 @@ match
 match r v =
   case coerceV v of
     Tuple tag a →
-      a # unsafePartial fromJust
-        (SM.lookup tag (coerceR r))
+      a # unsafeGet tag r
   where
   coerceV ∷ ∀ a. Variant variant → Tuple String a
   coerceV = unsafeCoerce
-
-  coerceR ∷ ∀ a. Record record → SM.StrMap a
-  coerceR = unsafeCoerce
 
 -- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
 -- | subset of `gt`.

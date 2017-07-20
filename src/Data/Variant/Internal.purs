@@ -12,14 +12,17 @@ module Data.Variant.Internal
   , lookupTag
   , lookupEq
   , lookupOrd
+  , unsafeGet
   ) where
 
 import Prelude
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
-import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
+import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol, reifySymbol)
 import Data.Tuple (Tuple(..))
+import Data.Record as Rec
 import Partial.Unsafe (unsafeCrashWith)
+import Unsafe.Coerce (unsafeCoerce)
 import Type.Row as R
 
 data RProxy (r ∷ # Type) = RProxy
@@ -163,3 +166,15 @@ instance contractWithInstance
   contractWith _ _ tag a
     | lookupTag tag (variantTags (RLProxy ∷ RLProxy ltl)) = pure a
     | otherwise = empty
+
+unsafeGet ∷ ∀ a r. String -> Record r -> a
+unsafeGet tag r = unsafeReifyLabelIn tag r (flip Rec.get r)
+
+unsafeReifyLabelIn :: ∀ a r. String -> Record r -> (∀ l r'. RowCons l a r' r => IsSymbol l => SProxy l -> a) -> a
+unsafeReifyLabelIn tag r f = reifySymbol tag noRowCons
+  where
+    coerce :: (∀ l r'. RowCons l a r' r => IsSymbol l => SProxy l -> a)
+           -> {} -> (∀ l. IsSymbol l => SProxy l -> a)
+    coerce = unsafeCoerce
+    noRowCons :: ∀ l. IsSymbol l => SProxy l -> a
+    noRowCons = coerce f {}

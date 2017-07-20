@@ -14,14 +14,12 @@ module Data.Functor.Variant
 import Prelude
 
 import Control.Alternative (class Alternative, empty)
-import Data.Maybe (fromJust)
-import Data.StrMap as SM
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (class Contractable, contractWith, VariantCase, class VRFMatching, RProxy(..), FProxy)
 import Data.Variant.Internal (class Contractable, FProxy(..)) as Exports
-import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Data.Variant.Internal (class Contractable, contractWith, VariantCase, class VRFMatching, RProxy(..), FProxy, unsafeGet)
+import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
 
 data FBox (f ∷ Type → Type) a = FBox (∀ x y. (x → y) → f x → f y) (f a)
@@ -142,14 +140,10 @@ match
 match r v =
   case coerceV v of
     Tuple tag (FBox _ a) →
-      a # unsafePartial fromJust
-        (SM.lookup tag (coerceR r))
+      a # unsafeGet tag r
   where
   coerceV ∷ ∀ f. VariantF variant typearg → Tuple String (FBox f typearg)
   coerceV = unsafeCoerce
-
-  coerceR ∷ ∀ a. Record record → SM.StrMap a
-  coerceR = unsafeCoerce
 
 -- | Every `VariantF lt a` can be cast to some `VariantF gt a` as long as `lt` is a
 -- | subset of `gt`.
