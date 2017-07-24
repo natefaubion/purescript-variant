@@ -1,7 +1,5 @@
 module Data.Variant.Internal
-  ( RLProxy(..)
-  , RProxy(..)
-  , FProxy(..)
+  ( FProxy(..)
   , VariantCase
   , class VariantTags, variantTags
   , class Contractable, contractWith
@@ -23,11 +21,10 @@ import Data.Tuple (Tuple(..))
 import Data.Record.Unsafe (unsafeGet) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
+import Type.Row (RProxy, RLProxy(..))
+import Type.Row (RProxy(..), RLProxy(..)) as Exports
 
-data RProxy (r ∷ # Type) = RProxy
-
-data RLProxy (rl ∷ R.RowList) = RLProxy
-
+-- | Proxy for a `Functor`.
 data FProxy (a ∷ Type → Type) = FProxy
 
 -- | Type class that matches a row for a `record` that will eliminate a row for
