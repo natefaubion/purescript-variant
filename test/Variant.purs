@@ -60,9 +60,9 @@ test = do
   let
     match' :: Variant TestVariants -> String
     match' = match
-      { foo: \a -> "foo: " <> show a
-      , bar: \a -> "bar: " <> a
-      , baz: \a -> "baz: " <> show a
+      { foo: \a → "foo: " <> show a
+      , bar: \a → "bar: " <> a
+      , baz: \a → "baz: " <> show a
       }
 
   assert' "match': foo" $ match' foo == "foo: 42"

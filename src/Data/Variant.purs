@@ -20,7 +20,7 @@ import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VRMatching, unsafeGet)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VariantRecordMatching, unsafeGet)
 import Data.Variant.Internal (class Contractable) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
@@ -120,7 +120,7 @@ default a _ = a
 -- | give the whole record an appropriate type.
 match
   ∷ ∀ variant record result
-  . VRMatching variant record result
+  . VariantRecordMatching variant record result
   ⇒ Record record
   → Variant variant
   → result

@@ -17,8 +17,8 @@ import Control.Alternative (class Alternative, empty)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
+import Data.Variant.Internal (class Contractable, contractWith, VariantCase, class VariantFRecordMatching, RProxy(..), FProxy, unsafeGet)
 import Data.Variant.Internal (class Contractable, FProxy(..)) as Exports
-import Data.Variant.Internal (class Contractable, contractWith, VariantCase, class VRFMatching, RProxy(..), FProxy, unsafeGet)
 import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -133,7 +133,7 @@ default a _ = a
 -- | give the whole record an appropriate type.
 match
   ∷ ∀ variant record typearg result
-  . VRFMatching variant record typearg result
+  . VariantFRecordMatching variant record typearg result
   ⇒ Record record
   → VariantF variant typearg
   → result
