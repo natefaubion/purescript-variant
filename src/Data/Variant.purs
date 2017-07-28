@@ -5,6 +5,7 @@ module Data.Variant
   , on
   , case_
   , default
+  , match
   , expand
   , contract
   , class VariantEqs, variantEqs
@@ -13,13 +14,14 @@ module Data.Variant
   ) where
 
 import Prelude
+
 import Control.Alternative (empty, class Alternative)
 import Data.List as L
+import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VariantRecordMatching, unsafeGet)
 import Data.Variant.Internal (class Contractable) as Exports
-import Data.Symbol (SProxy(..)) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -103,6 +105,32 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
+
+-- | Match a `variant` with a `record` containing methods to handle each case
+-- | to produce a `result`.
+-- |
+-- | This means that if `variant` contains a row of type `a`, a row with the
+-- | same label must have type `a -> result` in `record`, where `result` is the
+-- | same type for every row of `record`.
+-- |
+-- | Polymorphic methods in `record` may create problems with the type system
+-- | if the polymorphism is not fully generalized to the whole record type
+-- | or if not all polymorphic variables are specified in usage. When in doubt,
+-- | label methods with specific types, such as `show :: Int -> String`, or
+-- | give the whole record an appropriate type.
+match
+  ∷ ∀ variant record result
+  . VariantRecordMatching variant record result
+  ⇒ Record record
+  → Variant variant
+  → result
+match r v =
+  case coerceV v of
+    Tuple tag a →
+      a # unsafeGet tag r
+  where
+  coerceV ∷ ∀ a. Variant variant → Tuple String a
+  coerceV = unsafeCoerce
 
 -- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
 -- | subset of `gt`.

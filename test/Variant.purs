@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
-import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), contract)
+import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), match, contract)
 import Test.Assert (assert', ASSERT)
 
 type TestVariants =
@@ -56,6 +56,18 @@ test = do
   assert' "case2: foo" $ case2 foo == "foo: 42"
   assert' "case2: bar" $ case2 bar == "bar: bar"
   assert' "case2: baz" $ case2 baz == "no match"
+
+  let
+    match' :: Variant TestVariants -> String
+    match' = match
+      { foo: \a → "foo: " <> show a
+      , bar: \a → "bar: " <> a
+      , baz: \a → "baz: " <> show a
+      }
+
+  assert' "match': foo" $ match' foo == "foo: 42"
+  assert' "match': bar" $ match' bar == "bar: bar"
+  assert' "match': baz" $ match' baz == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
