@@ -10,6 +10,7 @@ module Data.Variant.Internal
   , lookupTag
   , lookupEq
   , lookupOrd
+  , lookup
   , module Exports
   ) where
 
@@ -123,7 +124,7 @@ lookupEq
   → Tuple String VariantCase
   → Boolean
 lookupEq tags eqs (Tuple t1 c1) (Tuple t2 c2)
-  | t1 == t2  = lookupBinaryFn "eq" t1 tags eqs c1 c2
+  | t1 == t2  = lookup "eq" t1 tags eqs c1 c2
   | otherwise = false
 
 lookupOrd
@@ -134,19 +135,17 @@ lookupOrd
   → Ordering
 lookupOrd tags ords (Tuple t1 c1) (Tuple t2 c2) =
   case compare t1 t2 of
-    EQ → lookupBinaryFn "compare" t1 tags ords c1 c2
+    EQ → lookup "compare" t1 tags ords c1 c2
     cp → cp
 
-lookupBinaryFn
-  ∷ ∀ a b
+lookup
+  ∷ ∀ a b c
   . String
   → String
   → L.List String
-  → L.List (a → a → b)
-  → a
-  → a
-  → b
-lookupBinaryFn name tag = go
+  → L.List c
+  → c
+lookup name tag = go
   where
   go = case _, _ of
     L.Cons t ts, L.Cons f fs
