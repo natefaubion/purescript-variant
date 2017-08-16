@@ -139,12 +139,12 @@ lookupOrd tags ords (Tuple t1 c1) (Tuple t2 c2) =
     cp → cp
 
 lookup
-  ∷ ∀ a b c
+  ∷ ∀ a
   . String
   → String
   → L.List String
-  → L.List c
-  → c
+  → L.List a
+  → a
 lookup name tag = go
   where
   go = case _, _ of
