@@ -10,6 +10,7 @@ module Data.Variant
   , contract
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
+  , class VariantShows, variantShows
   , module Exports
   ) where
 
@@ -20,7 +21,7 @@ import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, class Contractable, RProxy(..), contractWith, class VariantRecordMatching, unsafeGet)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookup, class Contractable, RProxy(..), contractWith, class VariantRecordMatching, unsafeGet)
 import Data.Variant.Internal (class Contractable) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
@@ -208,3 +209,26 @@ instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, Varian
       ords = variantOrds (RLProxy ∷ RLProxy rl)
     in
       lookupOrd tags ords c1 c2
+
+class VariantShows (rl ∷ R.RowList) where
+  variantShows ∷ RLProxy rl → L.List (VariantCase → String)
+
+instance showVariantNil ∷ VariantShows R.Nil where
+  variantShows _ = L.Nil
+
+instance showVariantCons ∷ (VariantShows rs, Show a) ⇒ VariantShows (R.Cons sym a rs) where
+  variantShows _ =
+    L.Cons (coerceShow show) (variantShows (RLProxy ∷ RLProxy rs))
+    where
+    coerceShow ∷ (a → String) → VariantCase → String
+    coerceShow = unsafeCoerce
+
+instance showVariant ∷ (R.RowToList r rl, VariantTags rl, VariantShows rl) ⇒ Show (Variant r) where
+  show v1 =
+    let
+      Tuple t c = unsafeCoerce v1 ∷ Tuple String VariantCase
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      shows = variantShows (RLProxy ∷ RLProxy rl)
+      body = lookup "show" t tags shows c
+    in
+      "(inj @" <> show t <> " (" <> body <> "))"
