@@ -67,15 +67,18 @@ test = do
 
   let
     match' ∷ VariantF TestVariants Int → String
-    match' = match
-      { foo: \a → "foo: " <> show a
-      , bar: \a → "bar: " <> show a
-      , baz: \a → "baz: " <> show a
-      }
+    match' = case_
+      # match
+        { foo: \a → "foo: " <> show a
+        , baz: \a → "baz: " <> show a
+        }
+      # match
+        { bar: \a → "bar: " <> show a
+        }
 
-  assert' "match': foo" $ match' foo == "foo: (Just 42)"
-  assert' "match': bar" $ match' bar == "bar: (Tuple \"bar\" 42)"
-  assert' "match': baz" $ match' baz == "baz: (Left \"baz\")"
+  assert' "match: foo" $ match' foo == "foo: (Just 42)"
+  assert' "match: bar" $ match' bar == "bar: (Tuple \"bar\" 42)"
+  assert' "match: baz" $ match' baz == "baz: (Left \"baz\")"
 
   assert' "contract: pass"
     $ isJust

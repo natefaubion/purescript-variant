@@ -21,8 +21,8 @@ import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookup, class Contractable, RProxy(..), contractWith, class VariantRecordMatching, unsafeGet)
-import Data.Variant.Internal (class Contractable) as Exports
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookup, class Contractable, RProxy(..), contractWith, unsafeGet, unsafeHas, class VariantMatchCases)
+import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -107,31 +107,47 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
 
--- | Match a `variant` with a `record` containing methods to handle each case
--- | to produce a `result`.
+-- | Match a `Variant` with a `Record` containing functions for handling cases.
+-- | This is similar to `on`, except instead of providing a single label and
+-- | handler, you can provide a record where each field maps to a particular
+-- | `Variant` case.
 -- |
--- | This means that if `variant` contains a row of type `a`, a row with the
--- | same label must have type `a -> result` in `record`, where `result` is the
--- | same type for every row of `record`.
+-- | ```purescript
+-- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
+-- | caseFn = case_ # match
+-- |   { foo: \foo -> "Foo: " <> show foo
+-- |   , bar: \bar -> "Bar: " <> bar
+-- |   , baz: \baz -> "Baz: " <> show baz
+-- |   }
+-- | ```
 -- |
--- | Polymorphic methods in `record` may create problems with the type system
--- | if the polymorphism is not fully generalized to the whole record type
--- | or if not all polymorphic variables are specified in usage. When in doubt,
--- | label methods with specific types, such as `show :: Int -> String`, or
--- | give the whole record an appropriate type.
+-- | Like with `on`, this can be combined with `default` as well for partial
+-- | matches.
+-- |
+-- | Polymorphic functions in records (such as `show` or `id`) can lead
+-- | to inference issues if not all polymorphic variables are specified
+-- | in usage. When in doubt, label methods with specific types, such as
+-- | `show :: Int -> String`, or give the whole record an appropriate type.
 match
-  ∷ ∀ variant record result
-  . VariantRecordMatching variant record result
-  ⇒ Record record
-  → Variant variant
-  → result
-match r v =
+  ∷ ∀ rl r r1 r2 r3 b
+  . R.RowToList r rl
+  ⇒ VariantMatchCases rl r1 b
+  ⇒ Union r1 r2 r3
+  ⇒ Record r
+  → (Variant r2 → b)
+  → Variant r3
+  → b
+match r k v =
   case coerceV v of
-    Tuple tag a →
-      a # unsafeGet tag r
+    Tuple tag a | unsafeHas tag r → unsafeGet tag r a
+    _ → k (coerceR v)
+
   where
-  coerceV ∷ ∀ a. Variant variant → Tuple String a
+  coerceV ∷ ∀ a. Variant r3 → Tuple String a
   coerceV = unsafeCoerce
+
+  coerceR ∷ Variant r3 → Variant r2
+  coerceR = unsafeCoerce
 
 -- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
 -- | subset of `gt`.

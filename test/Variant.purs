@@ -58,16 +58,19 @@ test = do
   assert' "case2: baz" $ case2 baz == "no match"
 
   let
-    match' :: Variant TestVariants -> String
-    match' = match
-      { foo: \a → "foo: " <> show a
-      , bar: \a → "bar: " <> a
-      , baz: \a → "baz: " <> show a
-      }
+    match' ∷ Variant TestVariants → String
+    match' = case_
+      # match
+        { foo: \a → "foo: " <> show a
+        , bar: \a → "bar: " <> a
+        }
+      # match
+        { baz: \a → "baz: " <> show a
+        }
 
-  assert' "match': foo" $ match' foo == "foo: 42"
-  assert' "match': bar" $ match' bar == "bar: bar"
-  assert' "match': baz" $ match' baz == "baz: true"
+  assert' "match: foo" $ match' foo == "foo: 42"
+  assert' "match: bar" $ match' bar == "bar: bar"
+  assert' "match: baz" $ match' baz == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
