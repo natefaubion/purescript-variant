@@ -3,9 +3,10 @@ module Data.Variant
   , inj
   , prj
   , on
+  , onMatch
   , case_
-  , default
   , match
+  , default
   , expand
   , contract
   , class VariantEqs, variantEqs
@@ -85,6 +86,43 @@ on p f g r =
   coerceR ∷ Variant r2 → Variant r1
   coerceR = unsafeCoerce
 
+-- | Match a `Variant` with a `Record` containing functions for handling cases.
+-- | This is similar to `on`, except instead of providing a single label and
+-- | handler, you can provide a record where each field maps to a particular
+-- | `Variant` case.
+-- |
+-- | ```purescript
+-- | onMatch
+-- |   { foo: \foo -> "Foo: " <> foo
+-- |   , bar: \bar -> "Bar: " <> bar
+-- |   }
+-- | ````
+-- |
+-- | Polymorphic functions in records (such as `show` or `id`) can lead
+-- | to inference issues if not all polymorphic variables are specified
+-- | in usage. When in doubt, label methods with specific types, such as
+-- | `show :: Int -> String`, or give the whole record an appropriate type.
+onMatch
+  ∷ ∀ rl r r1 r2 r3 b
+  . R.RowToList r rl
+  ⇒ VariantMatchCases rl r1 b
+  ⇒ Union r1 r2 r3
+  ⇒ Record r
+  → (Variant r2 → b)
+  → Variant r3
+  → b
+onMatch r k v =
+  case coerceV v of
+    Tuple tag a | unsafeHas tag r → unsafeGet tag r a
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ a. Variant r3 → Tuple String a
+  coerceV = unsafeCoerce
+
+  coerceR ∷ Variant r3 → Variant r2
+  coerceR = unsafeCoerce
+
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
 -- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
@@ -97,6 +135,25 @@ case_ ∷ ∀ a. Variant () → a
 case_ r = unsafeCrashWith case unsafeCoerce r of
   Tuple tag _ → "Data.Variant: pattern match failure [" <> tag <> "]"
 
+-- | Combinator for exhaustive pattern matching using an `onMatch` case record.
+-- | ```purescript
+-- | matchFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
+-- | matchFn = match
+-- |   { foo: \foo -> "Foo: " <> show foo
+-- |   , bar: \bar -> "Bar: " <> bar
+-- |   , baz: \baz -> "Baz: " <> show baz
+-- |   }
+-- | ```
+match
+  ∷ ∀ rl r r1 r2 b
+  . R.RowToList r rl
+  ⇒ VariantMatchCases rl r1 b
+  ⇒ Union r1 () r2
+  ⇒ Record r
+  → Variant r2
+  → b
+match r = case_ # onMatch r
+
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
 -- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
@@ -106,48 +163,6 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
-
--- | Match a `Variant` with a `Record` containing functions for handling cases.
--- | This is similar to `on`, except instead of providing a single label and
--- | handler, you can provide a record where each field maps to a particular
--- | `Variant` case.
--- |
--- | ```purescript
--- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
--- | caseFn = case_ # match
--- |   { foo: \foo -> "Foo: " <> show foo
--- |   , bar: \bar -> "Bar: " <> bar
--- |   , baz: \baz -> "Baz: " <> show baz
--- |   }
--- | ```
--- |
--- | Like with `on`, this can be combined with `default` as well for partial
--- | matches.
--- |
--- | Polymorphic functions in records (such as `show` or `id`) can lead
--- | to inference issues if not all polymorphic variables are specified
--- | in usage. When in doubt, label methods with specific types, such as
--- | `show :: Int -> String`, or give the whole record an appropriate type.
-match
-  ∷ ∀ rl r r1 r2 r3 b
-  . R.RowToList r rl
-  ⇒ VariantMatchCases rl r1 b
-  ⇒ Union r1 r2 r3
-  ⇒ Record r
-  → (Variant r2 → b)
-  → Variant r3
-  → b
-match r k v =
-  case coerceV v of
-    Tuple tag a | unsafeHas tag r → unsafeGet tag r a
-    _ → k (coerceR v)
-
-  where
-  coerceV ∷ ∀ a. Variant r3 → Tuple String a
-  coerceV = unsafeCoerce
-
-  coerceR ∷ Variant r3 → Variant r2
-  coerceR = unsafeCoerce
 
 -- | Every `Variant lt` can be cast to some `Variant gt` as long as `lt` is a
 -- | subset of `gt`.

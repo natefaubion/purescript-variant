@@ -32,8 +32,9 @@ class VariantMatchCases (rl ∷ R.RowList) (vo ∷ # Type) b | rl → vo b
 instance variantMatchCons
   ∷ ( VariantMatchCases rl vo' b
     , RowCons sym a vo' vo
+    , TypeEquals k (a → b)
     )
-  ⇒ VariantMatchCases (R.Cons sym (a → b) rl) vo b
+  ⇒ VariantMatchCases (R.Cons sym k rl) vo b
 
 instance variantMatchNil
   ∷ VariantMatchCases R.Nil () b

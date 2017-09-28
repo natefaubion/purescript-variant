@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Data.List as L
 import Data.Either (Either(..))
-import Data.Functor.Variant (VariantF, on, case_, default, match, inj, prj, SProxy(..), FProxy, contract)
+import Data.Functor.Variant (VariantF, on, onMatch, case_, default, match, inj, prj, SProxy(..), FProxy, contract)
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
 import Test.Assert (assert', ASSERT)
@@ -67,18 +67,30 @@ test = do
 
   let
     match' ∷ VariantF TestVariants Int → String
-    match' = case_
-      # match
-        { foo: \a → "foo: " <> show a
-        , baz: \a → "baz: " <> show a
-        }
-      # match
-        { bar: \a → "bar: " <> show a
-        }
+    match' = match
+      { foo: \a → "foo: " <> show a
+      , bar: \a → "bar: " <> show a
+      , baz: \a → "baz: " <> show a
+      }
 
   assert' "match: foo" $ match' foo == "foo: (Just 42)"
   assert' "match: bar" $ match' bar == "bar: (Tuple \"bar\" 42)"
   assert' "match: baz" $ match' baz == "baz: (Left \"baz\")"
+
+  let
+    onMatch' ∷ VariantF TestVariants Int → String
+    onMatch' = case_
+      # onMatch
+        { foo: \a → "foo: " <> show a
+        , baz: \a → "baz: " <> show a
+        }
+      # onMatch
+        { bar: \a → "bar: " <> show a
+        }
+
+  assert' "onMatch: foo" $ onMatch' foo == "foo: (Just 42)"
+  assert' "onMatch: bar" $ onMatch' bar == "bar: (Tuple \"bar\" 42)"
+  assert' "onMatch: baz" $ onMatch' baz == "baz: (Left \"baz\")"
 
   assert' "contract: pass"
     $ isJust

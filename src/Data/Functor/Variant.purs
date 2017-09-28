@@ -3,9 +3,10 @@ module Data.Functor.Variant
   , inj
   , prj
   , on
+  , onMatch
   , case_
-  , default
   , match
+  , default
   , expand
   , contract
   , module Exports
@@ -98,6 +99,43 @@ on p f g r =
   coerceR ∷ VariantF r2 a → VariantF r1 a
   coerceR = unsafeCoerce
 
+-- | Match a `VariantF` with a `Record` containing functions for handling cases.
+-- | This is similar to `on`, except instead of providing a single label and
+-- | handler, you can provide a record where each field maps to a particular
+-- | `VariantF` case.
+-- |
+-- | ```purescript
+-- | onMatch
+-- |  { foo: \foo -> "Foo: " <> maybe "nothing" id foo
+-- |  , bar: \bar -> "Bar: " <> snd bar
+-- |  }
+-- | ```
+-- |
+-- | Polymorphic functions in records (such as `show` or `id`) can lead
+-- | to inference issues if not all polymorphic variables are specified
+-- | in usage. When in doubt, label methods with specific types, such as
+-- | `show :: Int -> String`, or give the whole record an appropriate type.
+onMatch
+  ∷ ∀ rl r r1 r2 r3 a b
+  . R.RowToList r rl
+  ⇒ VariantFMatchCases rl r1 a b
+  ⇒ Union r1 r2 r3
+  ⇒ Record r
+  → (VariantF r2 a → b)
+  → VariantF r3 a
+  → b
+onMatch r k v =
+  case coerceV v of
+    Tuple tag (FBox _ a) | unsafeHas tag r → unsafeGet tag r a
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ f. VariantF r3 a → Tuple String (FBox f a)
+  coerceV = unsafeCoerce
+
+  coerceR ∷ VariantF r3 a → VariantF r2 a
+  coerceR = unsafeCoerce
+
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
 -- | caseFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
@@ -110,6 +148,25 @@ case_ ∷ ∀ a b. VariantF () a → b
 case_ r = unsafeCrashWith case unsafeCoerce r of
   Tuple tag _ → "Data.Functor.Variant: pattern match failure [" <> tag <> "]"
 
+-- | Combinator for exhaustive pattern matching using an `onMatch` case record.
+-- | ```purescript
+-- | matchFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
+-- | matchFn = case_ # match
+-- |  { foo: \foo -> "Foo: " <> maybe "nothing" show foo
+-- |  , bar: \bar -> "Bar: " <> show (snd bar)
+-- |  , baz: \baz -> "Baz: " <> either id show baz
+-- |  }
+-- | ```
+match
+  ∷ ∀ rl r r1 r2 a b
+  . R.RowToList r rl
+  ⇒ VariantFMatchCases rl r1 a b
+  ⇒ Union r1 () r2
+  ⇒ Record r
+  → VariantF r2 a
+  → b
+match r = case_ # onMatch r
+
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
 -- | caseFn :: forall r. VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String) | r) Int -> String
@@ -119,48 +176,6 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 default ∷ ∀ a b r. a → VariantF r b → a
 default a _ = a
-
--- | Match a `VariantF` with a `Record` containing functions for handling cases.
--- | This is similar to `on`, except instead of providing a single label and
--- | handler, you can provide a record where each field maps to a particular
--- | `VariantF` case.
--- |
--- | ```purescript
--- | caseFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
--- | caseFn = case_ # match
--- |  { foo: \foo -> "Foo: " <> maybe "nothing" show foo
--- |  , bar: \bar -> "Bar: " <> show (snd bar)
--- |  , baz: \baz -> "Baz: " <> either id show baz
--- |  }
--- | ```
--- |
--- | Like with `on`, this can be combined with `default` as well for partial
--- | matches.
--- |
--- | Polymorphic functions in records (such as `show` or `id`) can lead
--- | to inference issues if not all polymorphic variables are specified
--- | in usage. When in doubt, label methods with specific types, such as
--- | `show :: Int -> String`, or give the whole record an appropriate type.
-match
-  ∷ ∀ rl r r1 r2 r3 a b
-  . R.RowToList r rl
-  ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 r2 r3
-  ⇒ Record r
-  → (VariantF r2 a → b)
-  → VariantF r3 a
-  → b
-match r k v =
-  case coerceV v of
-    Tuple tag (FBox _ a) | unsafeHas tag r → unsafeGet tag r a
-    _ → k (coerceR v)
-
-  where
-  coerceV ∷ ∀ f. VariantF r3 a → Tuple String (FBox f a)
-  coerceV = unsafeCoerce
-
-  coerceR ∷ VariantF r3 a → VariantF r2 a
-  coerceR = unsafeCoerce
 
 -- | Every `VariantF lt a` can be cast to some `VariantF gt a` as long as `lt` is a
 -- | subset of `gt`.

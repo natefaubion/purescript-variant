@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
-import Data.Variant (Variant, on, case_, default, inj, prj, SProxy(..), match, contract)
+import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract)
 import Test.Assert (assert', ASSERT)
 
 type TestVariants =
@@ -59,18 +59,30 @@ test = do
 
   let
     match' ∷ Variant TestVariants → String
-    match' = case_
-      # match
-        { foo: \a → "foo: " <> show a
-        , bar: \a → "bar: " <> a
-        }
-      # match
-        { baz: \a → "baz: " <> show a
-        }
+    match' = match
+      { foo: \a → "foo: " <> show a
+      , bar: \a → "bar: " <> a
+      , baz: \a → "baz: " <> show a
+      }
 
   assert' "match: foo" $ match' foo == "foo: 42"
   assert' "match: bar" $ match' bar == "bar: bar"
   assert' "match: baz" $ match' baz == "baz: true"
+
+  let
+    onMatch' ∷ Variant TestVariants → String
+    onMatch' = case_
+      # onMatch
+        { foo: \a → "foo: " <> show a
+        , bar: \a → "bar: " <> a
+        }
+      # onMatch
+        { baz: \a → "baz: " <> show a
+        }
+
+  assert' "onMatch: foo" $ onMatch' foo == "foo: 42"
+  assert' "onMatch: bar" $ onMatch' bar == "bar: bar"
+  assert' "onMatch: baz" $ onMatch' baz == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
