@@ -3,10 +3,8 @@ module Data.Variant.Internal
   , VariantCase
   , class VariantTags, variantTags
   , class Contractable, contractWith
-  , class VariantRecordMatching
-  , class VariantMatchEachCase
-  , class VariantFRecordMatching
-  , class VariantFMatchEachCase
+  , class VariantMatchCases
+  , class VariantFMatchCases
   , lookupTag
   , lookupEq
   , lookupOrd
@@ -19,8 +17,9 @@ import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Data.Tuple (Tuple(..))
-import Data.Record.Unsafe (unsafeGet) as Exports
+import Data.Record.Unsafe (unsafeGet, unsafeHas) as Exports
 import Partial.Unsafe (unsafeCrashWith)
+import Type.Equality (class TypeEquals)
 import Type.Row as R
 import Type.Row (RProxy, RLProxy(..))
 import Type.Row (RProxy(..), RLProxy(..)) as Exports
@@ -28,72 +27,29 @@ import Type.Row (RProxy(..), RLProxy(..)) as Exports
 -- | Proxy for a `Functor`.
 data FProxy (a ∷ Type → Type) = FProxy
 
--- | Type class that matches a row for a `record` that will eliminate a row for
--- | a `variant`, producing a `result` of the specified type. Just a wrapper for
--- | `RLMatch` to convert `RowToList` and vice versa.
-class VariantRecordMatching
-    (variant ∷ # Type)
-    (record ∷ # Type)
-    result
-  | → variant record result
-instance variantRecordMatching
-  ∷ ( R.RowToList variant vlist
-    , R.RowToList record rlist
-    , VariantMatchEachCase vlist rlist result
-    , R.ListToRow vlist variant
-    , R.ListToRow rlist record )
-  ⇒ VariantRecordMatching variant record result
+class VariantMatchCases (rl ∷ R.RowList) (vo ∷ # Type) b | rl → vo b
 
--- | Checks that a `RowList` matches the argument to be given to the function
--- | in the other `RowList` with the same label, such that it will produce the
--- | result type.
-class VariantMatchEachCase
-    (vlist ∷ R.RowList)
-    (rlist ∷ R.RowList)
-    result
-  | vlist → rlist result
-  , rlist → vlist result
-instance variantMatchNil
-  ∷ VariantMatchEachCase R.Nil R.Nil r
 instance variantMatchCons
-  ∷ VariantMatchEachCase v r res
-  ⇒ VariantMatchEachCase
-    (R.Cons sym a v)
-    (R.Cons sym (a → res) r)
-    res
+  ∷ ( VariantMatchCases rl vo' b
+    , RowCons sym a vo' vo
+    , TypeEquals k (a → b)
+    )
+  ⇒ VariantMatchCases (R.Cons sym k rl) vo b
 
-class VariantFRecordMatching
-    (variant ∷ # Type)
-    (record ∷ # Type)
-    typearg
-    result
-  | → variant record typearg result
-instance variantFRecordMatching
-  ∷ ( R.RowToList variant vlist
-    , R.RowToList record rlist
-    , VariantFMatchEachCase vlist rlist typearg result
-    , R.ListToRow vlist variant
-    , R.ListToRow rlist record )
-  ⇒ VariantFRecordMatching variant record typearg result
+instance variantMatchNil
+  ∷ VariantMatchCases R.Nil () b
 
--- | Checks that a `RowList` matches the argument to be given to the function
--- | in the other `RowList` with the same label, such that it will produce the
--- | result type.
-class VariantFMatchEachCase
-    (vlist ∷ R.RowList)
-    (rlist ∷ R.RowList)
-    typearg
-    result
-  | vlist → rlist typearg result
-  , rlist → vlist typearg result
-instance variantFMatchNil
-  ∷ VariantFMatchEachCase R.Nil R.Nil a r
+class VariantFMatchCases (rl ∷ R.RowList) (vo ∷ # Type) a b | rl → vo a b
+
 instance variantFMatchCons
-  ∷ VariantFMatchEachCase v r a res
-  ⇒ VariantFMatchEachCase
-    (R.Cons sym (FProxy f) v)
-    (R.Cons sym (f a → res) r)
-    a res
+  ∷ ( VariantFMatchCases rl vo' a b
+    , RowCons sym (FProxy f) vo' vo
+    , TypeEquals k (f a → b)
+    )
+  ⇒ VariantFMatchCases (R.Cons sym k rl) vo a b
+
+instance variantFMatchNil
+  ∷ VariantFMatchCases R.Nil () a b
 
 foreign import data VariantCase ∷ Type
 
