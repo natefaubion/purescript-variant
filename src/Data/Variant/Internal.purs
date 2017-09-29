@@ -1,6 +1,8 @@
 module Data.Variant.Internal
   ( FProxy(..)
+  , VariantRep(..)
   , VariantCase
+  , VariantFCase
   , class VariantTags, variantTags
   , class Contractable, contractWith
   , class VariantMatchCases
@@ -16,7 +18,6 @@ import Prelude
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
-import Data.Tuple (Tuple(..))
 import Data.Record.Unsafe (unsafeGet, unsafeHas) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Equality (class TypeEquals)
@@ -26,6 +27,11 @@ import Type.Row (RProxy(..), RLProxy(..)) as Exports
 
 -- | Proxy for a `Functor`.
 data FProxy (a ∷ Type → Type) = FProxy
+
+newtype VariantRep a = VariantRep
+  { type ∷ String
+  , value ∷ a
+  }
 
 class VariantMatchCases (rl ∷ R.RowList) (vo ∷ # Type) b | rl → vo b
 
@@ -53,6 +59,8 @@ instance variantFMatchNil
 
 foreign import data VariantCase ∷ Type
 
+foreign import data VariantFCase ∷ Type → Type
+
 class VariantTags (rl ∷ R.RowList) where
   variantTags ∷ RLProxy rl → L.List String
 
@@ -76,22 +84,22 @@ lookupTag tag = go
 lookupEq
   ∷ L.List String
   → L.List (VariantCase → VariantCase → Boolean)
-  → Tuple String VariantCase
-  → Tuple String VariantCase
+  → VariantRep VariantCase
+  → VariantRep VariantCase
   → Boolean
-lookupEq tags eqs (Tuple t1 c1) (Tuple t2 c2)
-  | t1 == t2  = lookup "eq" t1 tags eqs c1 c2
+lookupEq tags eqs (VariantRep v1) (VariantRep v2)
+  | v1.type == v2.type = lookup "eq" v1.type tags eqs v1.value v2.value
   | otherwise = false
 
 lookupOrd
   ∷ L.List String
   → L.List (VariantCase → VariantCase → Ordering)
-  → Tuple String VariantCase
-  → Tuple String VariantCase
+  → VariantRep VariantCase
+  → VariantRep VariantCase
   → Ordering
-lookupOrd tags ords (Tuple t1 c1) (Tuple t2 c2) =
-  case compare t1 t2 of
-    EQ → lookup "compare" t1 tags ords c1 c2
+lookupOrd tags ords (VariantRep v1) (VariantRep v2) =
+  case compare v1.type v2.type of
+    EQ → lookup "compare" v1.type tags ords v1.value v2.value
     cp → cp
 
 lookup

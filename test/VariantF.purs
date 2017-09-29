@@ -92,6 +92,20 @@ test = do
   assert' "onMatch: bar" $ onMatch' bar == "bar: (Tuple \"bar\" 42)"
   assert' "onMatch: baz" $ onMatch' baz == "baz: (Left \"baz\")"
 
+  let
+    map' ∷ VariantF TestVariants Int → String
+    map' = case_
+      # on _foo (\a → "foo: " <> show a)
+      # on _bar (\a → "bar: " <> show a)
+      # on _baz (\a → "baz: " <> show a)
+
+    map'' ∷ VariantF TestVariants Int → String
+    map'' = map (_ + 2) >>> map'
+
+  assert' "map: foo" $ map'' foo == "foo: (Just 44)"
+  assert' "map: bar" $ map'' bar == "bar: (Tuple \"bar\" 44)"
+  assert' "map: baz" $ map'' baz == "baz: (Left \"baz\")"
+
   assert' "contract: pass"
     $ isJust
     $ contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ FProxy Maybe) Int)
@@ -99,3 +113,5 @@ test = do
   assert' "contract: fail"
     $ L.null
     $ contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ FProxy Maybe) Int)
+
+  assert' "show" $ show (foo :: VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""

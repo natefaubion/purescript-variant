@@ -9,37 +9,45 @@ module Data.Functor.Variant
   , default
   , expand
   , contract
+  , class VariantFShows, variantFShows
   , module Exports
   ) where
 
 import Prelude
 
 import Control.Alternative (class Alternative, empty)
+import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
-import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (class Contractable, contractWith, VariantCase, RProxy(..), FProxy, class VariantFMatchCases, unsafeGet, unsafeHas)
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
+import Type.Equality (class TypeEquals)
+import Type.Proxy (Proxy(..))
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
 
-data FBox (f ∷ Type → Type) a = FBox (∀ x y. (x → y) → f x → f y) (f a)
-
-instance functorFBox ∷ Functor (FBox f) where
-  map f (FBox map' a) = FBox map' (map' f a)
+newtype VariantFRep f a = VariantFRep
+  { type ∷ String
+  , value ∷ f a
+  , map ∷ ∀ x y. (x → y) → f x → f y
+  }
 
 data VariantF (f ∷ # Type) a
 
 instance functorVariantF ∷ Functor (VariantF r) where
   map f a =
     case coerceY a of
-      Tuple tag a' → coerceV (Tuple tag (f <$> a'))
+      VariantFRep v → coerceV $ VariantFRep
+        { type: v.type
+        , value: v.map f v.value
+        , map: v.map
+        }
     where
-    coerceY ∷ ∀ f a. VariantF r a → Tuple String (FBox f a)
+    coerceY ∷ ∀ f a. VariantF r a → VariantFRep f a
     coerceY = unsafeCoerce
 
-    coerceV ∷ ∀ f a. Tuple String (FBox f a) → VariantF r a
+    coerceV ∷ ∀ f a. VariantFRep f a → VariantF r a
     coerceV = unsafeCoerce
 
 -- | Inject into the variant at a given label.
@@ -55,9 +63,9 @@ inj
   ⇒ SProxy sym
   → f a
   → VariantF r2 a
-inj p a = coerceV (Tuple (reflectSymbol p) (FBox map a))
+inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
   where
-  coerceV ∷ Tuple String (FBox f a) → VariantF r2 a
+  coerceV ∷ VariantFRep f a → VariantF r2 a
   coerceV = unsafeCoerce
 
 -- | Attempt to read a variant at a given label.
@@ -90,10 +98,10 @@ on
   → b
 on p f g r =
   case coerceY r of
-    Tuple tag (FBox _ a) | tag == reflectSymbol p → f a
+    VariantFRep v | v.type == reflectSymbol p → f v.value
     _ → g (coerceR r)
   where
-  coerceY ∷ VariantF r2 a → Tuple String (FBox f a)
+  coerceY ∷ VariantF r2 a → VariantFRep f a
   coerceY = unsafeCoerce
 
   coerceR ∷ VariantF r2 a → VariantF r1 a
@@ -126,11 +134,11 @@ onMatch
   → b
 onMatch r k v =
   case coerceV v of
-    Tuple tag (FBox _ a) | unsafeHas tag r → unsafeGet tag r a
+    VariantFRep v' | unsafeHas v'.type r → unsafeGet v'.type r v'.value
     _ → k (coerceR v)
 
   where
-  coerceV ∷ ∀ f. VariantF r3 a → Tuple String (FBox f a)
+  coerceV ∷ ∀ f. VariantF r3 a → VariantFRep f a
   coerceV = unsafeCoerce
 
   coerceR ∷ VariantF r3 a → VariantF r2 a
@@ -146,7 +154,7 @@ onMatch r k v =
 -- | ```
 case_ ∷ ∀ a b. VariantF () a → b
 case_ r = unsafeCrashWith case unsafeCoerce r of
-  Tuple tag _ → "Data.Functor.Variant: pattern match failure [" <> tag <> "]"
+  VariantFRep v → "Data.Functor.Variant: pattern match failure [" <> v.type <> "]"
 
 -- | Combinator for exhaustive pattern matching using an `onMatch` case record.
 -- | ```purescript
@@ -199,11 +207,34 @@ contract v =
   contractWith
     (RProxy ∷ RProxy gt)
     (RProxy ∷ RProxy lt)
-    (fst $ coerceV v)
+    (case coerceV v of VariantFRep v' → v'.type)
     (coerceR v)
   where
-  coerceV ∷ VariantF gt a → Tuple String VariantCase
+  coerceV ∷ ∀ g. VariantF gt a → VariantFRep g a
   coerceV = unsafeCoerce
 
   coerceR ∷ VariantF gt a → VariantF lt a
   coerceR = unsafeCoerce
+
+class VariantFShows (rl ∷ R.RowList) x where
+  variantFShows ∷ RLProxy rl → Proxy x → L.List (VariantCase → String)
+
+instance showVariantFNil ∷ VariantFShows R.Nil x where
+  variantFShows _ _ = L.Nil
+
+instance showVariantFCons ∷ (VariantFShows rs x, TypeEquals a (FProxy f), Show (f x), Show x) ⇒ VariantFShows (R.Cons sym a rs) x where
+  variantFShows _ p =
+    L.Cons (coerceShow show) (variantFShows (RLProxy ∷ RLProxy rs) p)
+    where
+    coerceShow ∷ (f x → String) → VariantCase → String
+    coerceShow = unsafeCoerce
+
+instance showVariantF ∷ (R.RowToList r rl, VariantTags rl, VariantFShows rl a, Show a) ⇒ Show (VariantF r a) where
+  show v1 =
+    let
+      VariantFRep v = unsafeCoerce v1 ∷ VariantFRep VariantFCase a
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      shows = variantFShows (RLProxy ∷ RLProxy rl) (Proxy ∷ Proxy a)
+      body = lookup "show" v.type tags shows (unsafeCoerce v.value ∷ VariantCase)
+    in
+      "(inj @" <> show v.type <> " " <> body <> ")"

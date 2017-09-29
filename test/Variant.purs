@@ -104,4 +104,4 @@ test = do
     $ L.null
     $ contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int))
 
-  assert' "show" $ show (foo :: Variant TestVariants) ==  """(inj @"foo" (42))"""
+  assert' "show" $ show (foo :: Variant TestVariants) ==  """(inj @"foo" 42)"""

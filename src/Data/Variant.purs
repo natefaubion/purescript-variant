@@ -21,8 +21,7 @@ import Control.Alternative (empty, class Alternative)
 import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
-import Data.Tuple (Tuple(..), fst)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, lookupEq, lookupOrd, lookup, class Contractable, RProxy(..), contractWith, unsafeGet, unsafeHas, class VariantMatchCases)
+import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, VariantRep(..), lookupEq, lookupOrd, lookup, class Contractable, RProxy(..), contractWith, unsafeGet, unsafeHas, class VariantMatchCases)
 import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
@@ -42,9 +41,9 @@ inj
   ⇒ SProxy sym
   → a
   → Variant r2
-inj p a = coerceV (Tuple (reflectSymbol p) a)
+inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
   where
-  coerceV ∷ Tuple String a → Variant r2
+  coerceV ∷ VariantRep a → Variant r2
   coerceV = unsafeCoerce
 
 -- | Attempt to read a variant at a given label.
@@ -77,10 +76,10 @@ on
   → b
 on p f g r =
   case coerceV r of
-    Tuple tag a | tag == reflectSymbol p → f a
+    VariantRep v | v.type == reflectSymbol p → f v.value
     _ → g (coerceR r)
   where
-  coerceV ∷ Variant r2 → Tuple String a
+  coerceV ∷ Variant r2 → VariantRep a
   coerceV = unsafeCoerce
 
   coerceR ∷ Variant r2 → Variant r1
@@ -113,11 +112,11 @@ onMatch
   → b
 onMatch r k v =
   case coerceV v of
-    Tuple tag a | unsafeHas tag r → unsafeGet tag r a
+    VariantRep v' | unsafeHas v'.type r → unsafeGet v'.type r v'.value
     _ → k (coerceR v)
 
   where
-  coerceV ∷ ∀ a. Variant r3 → Tuple String a
+  coerceV ∷ ∀ a. Variant r3 → VariantRep a
   coerceV = unsafeCoerce
 
   coerceR ∷ Variant r3 → Variant r2
@@ -133,7 +132,7 @@ onMatch r k v =
 -- | ```
 case_ ∷ ∀ a. Variant () → a
 case_ r = unsafeCrashWith case unsafeCoerce r of
-  Tuple tag _ → "Data.Variant: pattern match failure [" <> tag <> "]"
+  VariantRep v → "Data.Variant: pattern match failure [" <> v.type <> "]"
 
 -- | Combinator for exhaustive pattern matching using an `onMatch` case record.
 -- | ```purescript
@@ -186,10 +185,10 @@ contract v =
   contractWith
     (RProxy ∷ RProxy gt)
     (RProxy ∷ RProxy lt)
-    (fst $ coerceV v)
+    (case coerceV v of VariantRep v' → v'.type)
     (coerceR v)
   where
-  coerceV ∷ Variant gt → Tuple String VariantCase
+  coerceV ∷ ∀ a. Variant gt → VariantRep a
   coerceV = unsafeCoerce
 
   coerceR ∷ Variant gt → Variant lt
@@ -211,8 +210,8 @@ instance eqVariantCons ∷ (VariantEqs rs, Eq a) ⇒ VariantEqs (R.Cons sym a rs
 instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq (Variant r) where
   eq v1 v2 =
     let
-      c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
-      c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
+      c1 = unsafeCoerce v1 ∷ VariantRep VariantCase
+      c2 = unsafeCoerce v2 ∷ VariantRep VariantCase
       tags = variantTags (RLProxy ∷ RLProxy rl)
       eqs = variantEqs (RLProxy ∷ RLProxy rl)
     in
@@ -234,8 +233,8 @@ instance ordVariantCons ∷ (VariantOrds rs, Ord a) ⇒ VariantOrds (R.Cons sym 
 instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl) ⇒ Ord (Variant r) where
   compare v1 v2 =
     let
-      c1 = unsafeCoerce v1 ∷ Tuple String VariantCase
-      c2 = unsafeCoerce v2 ∷ Tuple String VariantCase
+      c1 = unsafeCoerce v1 ∷ VariantRep VariantCase
+      c2 = unsafeCoerce v2 ∷ VariantRep VariantCase
       tags = variantTags (RLProxy ∷ RLProxy rl)
       ords = variantOrds (RLProxy ∷ RLProxy rl)
     in
@@ -257,9 +256,9 @@ instance showVariantCons ∷ (VariantShows rs, Show a) ⇒ VariantShows (R.Cons 
 instance showVariant ∷ (R.RowToList r rl, VariantTags rl, VariantShows rl) ⇒ Show (Variant r) where
   show v1 =
     let
-      Tuple t c = unsafeCoerce v1 ∷ Tuple String VariantCase
+      VariantRep v = unsafeCoerce v1 ∷ VariantRep VariantCase
       tags = variantTags (RLProxy ∷ RLProxy rl)
       shows = variantShows (RLProxy ∷ RLProxy rl)
-      body = lookup "show" t tags shows c
+      body = lookup "show" v.type tags shows v.value
     in
-      "(inj @" <> show t <> " (" <> body <> "))"
+      "(inj @" <> show v.type <> " " <> body <> ")"
