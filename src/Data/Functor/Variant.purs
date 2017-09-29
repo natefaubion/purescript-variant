@@ -159,7 +159,7 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | Combinator for exhaustive pattern matching using an `onMatch` case record.
 -- | ```purescript
 -- | matchFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
--- | matchFn = case_ # match
+-- | matchFn = match
 -- |  { foo: \foo -> "Foo: " <> maybe "nothing" show foo
 -- |  , bar: \bar -> "Bar: " <> show (snd bar)
 -- |  , baz: \baz -> "Baz: " <> either id show baz
