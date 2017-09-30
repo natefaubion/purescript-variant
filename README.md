@@ -152,4 +152,27 @@ allToString =
     # on _baz (\str -> str)
 ```
 
-:tada:
+Instead of chaining with just `on`, there is `onMatch` which adds record sugar.
+
+```purescript
+onFooOrBar :: forall v. (Variant v -> String) -> Variant (foo :: Int, bar :: Boolean | v) -> String
+onFooOrBar = onMatch
+  { foo: show :: Int -> String
+  , bar: if _ then "true" else "false"
+  }
+```
+
+But note that polymorphic functions like `show` or `id` need to be either
+annotated or eta expanded due to record impredicativity.
+
+`onMatch` can be used with `case_` and `default` just like `on`, but there is
+also `match` for the common case of total matching.
+
+```purescript
+allToString :: Variant (foo :: Int, bar :: Boolean, baz :: String) -> String
+allToString = match
+  { foo: \a -> show a
+  , bar: \a -> if a then "true" else "false"
+  , baz: \a -> a
+  }
+```
