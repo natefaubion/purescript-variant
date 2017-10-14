@@ -176,3 +176,23 @@ allToString = match
   , baz: \a -> a
   }
 ```
+
+We can combine polymorphic variants with `Functor`s as well using `VariantF`,
+which lives in `Data.Functor.Variant`. `VariantF` is just like `Variant`,
+except it's indexed by things of kind `Type -> Type`.
+
+```purescript
+someFoo :: forall v. VariantF (foo :: FProxy Maybe | v) Int
+someFoo = inj (SProxy :: SProxy "foo") (Just 42)
+
+someBar :: forall v. VariantF (bar :: FProxy (Tuple String) | v) Int
+someBar = inj (SProxy :: SProxy "bar") (Tuple "bar" 42)
+
+someBaz :: forall v a. VariantF (baz :: FProxy (Either String) | v) a
+someBaz = inj (SProxy :: SProxy "baz") (Left "Baz")
+```
+
+`VariantF` supports all the same combinators as `Variant`. We need to use
+`FProxy` in the types, however, because the row machinery in PuresScript
+is not poly-kinded. `FProxy` lets us talk about functors, but trick the
+type system into thinking they are the expected kind.
