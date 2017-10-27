@@ -31,7 +31,8 @@
     "purescript-maybe": "^3.0.0",
     "purescript-typelevel-prelude": "^2.4.0",
     "purescript-lists": "^4.9.0",
-    "purescript-record": "0.2.3"
+    "purescript-record": "0.2.3",
+    "purescript-enums": "^3.2.1"
   },
   "devDependencies": {
     "purescript-console": "^3.0.0",

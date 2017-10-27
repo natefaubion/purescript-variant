@@ -11,12 +11,17 @@ module Data.Variant.Internal
   , lookupEq
   , lookupOrd
   , lookup
+  , lookup'
+  , BoundedDict
+  , BoundedEnumDict
+  , fromJust
   , module Exports
   ) where
 
 import Prelude
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
+import Data.Maybe as M
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Data.Record.Unsafe (unsafeGet, unsafeHas) as Exports
 import Partial.Unsafe (unsafeCrashWith)
@@ -109,14 +114,30 @@ lookup
   → L.List String
   → L.List a
   → a
-lookup name tag = go
+lookup name tag tags as = fromJust name $ lookup' tag tags as
+
+fromJust
+  ∷ ∀ a
+  . String
+  → M.Maybe a
+  → a
+fromJust name = case _ of
+  M.Just a → a
+  _ → unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
+
+lookup'
+  ∷ ∀ a
+  . String
+  → L.List String
+  → L.List a
+  → M.Maybe a
+lookup' tag = go
   where
   go = case _, _ of
     L.Cons t ts, L.Cons f fs
-      | t == tag  → f
+      | t == tag → M.Just f
       | otherwise → go ts fs
-    _, _ →
-      unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
+    _, _ → M.Nothing
 
 class Contractable gt lt where
   contractWith ∷ ∀ f a. Alternative f ⇒ RProxy gt → RProxy lt → String → a → f a
@@ -131,3 +152,16 @@ instance contractWithInstance
   contractWith _ _ tag a
     | lookupTag tag (variantTags (RLProxy ∷ RLProxy ltl)) = pure a
     | otherwise = empty
+
+type BoundedDict a =
+  { top ∷ a
+  , bottom ∷ a
+  }
+
+type BoundedEnumDict a =
+  { pred ∷ a → M.Maybe a
+  , succ ∷ a → M.Maybe a
+  , fromEnum ∷ a → Int
+  , toEnum ∷ Int → M.Maybe a
+  , cardinality ∷ Int
+  }
