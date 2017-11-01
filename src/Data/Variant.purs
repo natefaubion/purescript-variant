@@ -12,6 +12,8 @@ module Data.Variant
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
   , class VariantShows, variantShows
+  , class VariantBounded, variantBounded
+  , class VariantBoundedEnums, variantBoundedEnums
   , module Exports
   ) where
 
@@ -254,8 +256,8 @@ instance boundedVariant
         tags = variantTags prx
         dicts = variantBounded prx
         zipped = L.zip tags dicts
-        hd = T.snd $ fromJust "top" $ L.head $ L.sortBy (\a b → compare (T.fst b) (T.fst a)) zipped
-      in unsafeCoerce hd.top
+        hd = fromJust "top" $ L.head $ L.sortBy (\a b → compare (T.fst b) (T.fst a)) zipped
+      in unsafeCoerce { type: T.fst hd, value: (T.snd hd).top }
 
     bottom =
       let
@@ -263,8 +265,8 @@ instance boundedVariant
         tags = variantTags prx
         dicts = variantBounded prx
         zipped = L.zip tags dicts
-        hd = T.snd $ fromJust "bottom" $ L.head $ L.sortBy (\a b → compare (T.fst a) (T.fst b)) zipped
-      in unsafeCoerce hd.bottom
+        hd = fromJust "bottom" $ L.head $ L.sortBy (\a b → compare (T.fst a) (T.fst b)) zipped
+      in unsafeCoerce { type: T.fst hd, value: (T.snd hd).bottom }
 
 class VariantBounded rl ⇐ VariantBoundedEnums rl where
   variantBoundedEnums ∷ RLProxy rl → L.List (BoundedEnumDict VariantCase)
@@ -336,7 +338,7 @@ instance enumVariant
         dict ∷ BoundedEnumDict VariantCase
         dict = T.snd $ T.snd pack
 
-    succ a = coerceOut case dict.pred (unsafeCoerce arep.value) of
+    succ a = coerceOut case dict.succ (unsafeCoerce arep.value) of
       M.Just b → M.Just $ VariantRep arep{ value = b }
       M.Nothing
         | tagIx == totalTags - 1 → M.Nothing
@@ -416,9 +418,9 @@ instance boundedEnumVariant
 
       go ix = case _ of
         L.Cons (T.Tuple k dict) tl
-          | dict.cardinality > ix → case dict.toEnum ix of
-              M.Just a → M.Just $ unsafeCoerce { type: k, value: dict.toEnum ix }
-              M.Nothing → M.Nothing -- this is impossible though
+          | dict.cardinality > ix  → case dict.toEnum ix of
+              M.Just a → M.Just $ unsafeCoerce { type: k, value: a }
+              M.Nothing → M.Nothing -- this is impossible in fact
           | otherwise → go (ix - dict.cardinality) tl
         _ → M.Nothing
 
