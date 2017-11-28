@@ -11,7 +11,6 @@ module Data.Variant.Internal
   , lookupEq
   , lookupOrd
   , lookup
-  , lookup'
   , BoundedDict
   , BoundedEnumDict
   , fromJust
@@ -107,15 +106,6 @@ lookupOrd tags ords (VariantRep v1) (VariantRep v2) =
     EQ → lookup "compare" v1.type tags ords v1.value v2.value
     cp → cp
 
-lookup
-  ∷ ∀ a
-  . String
-  → String
-  → L.List String
-  → L.List a
-  → a
-lookup name tag tags as = fromJust name $ lookup' tag tags as
-
 fromJust
   ∷ ∀ a
   . String
@@ -125,19 +115,20 @@ fromJust name = case _ of
   M.Just a → a
   _ → unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
 
-lookup'
+lookup
   ∷ ∀ a
   . String
+  → String
   → L.List String
   → L.List a
-  → M.Maybe a
-lookup' tag = go
+  → a
+lookup name tag = go
   where
   go = case _, _ of
     L.Cons t ts, L.Cons f fs
-      | t == tag → M.Just f
+      | t == tag → f
       | otherwise → go ts fs
-    _, _ → M.Nothing
+    _, _ → unsafeCrashWith $ "Data.Variant: impossible `" <> name <> "`"
 
 class Contractable gt lt where
   contractWith ∷ ∀ f a. Alternative f ⇒ RProxy gt → RProxy lt → String → a → f a
