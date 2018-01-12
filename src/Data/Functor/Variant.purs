@@ -10,6 +10,10 @@ module Data.Functor.Variant
   , expand
   , contract
   , class VariantFShows, variantFShows
+  , class TraversableVFRL
+  , class FoldableVFRL
+  , traverseVFRL
+  , foldMapVFRL
   , module Exports
   ) where
 
