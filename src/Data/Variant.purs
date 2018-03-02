@@ -12,17 +12,21 @@ module Data.Variant
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
   , class VariantShows, variantShows
+  , class VariantBounded, variantBounded
+  , class VariantBoundedEnums, variantBoundedEnums
   , module Exports
   ) where
 
 import Prelude
 
 import Control.Alternative (empty, class Alternative)
+import Data.Enum (class Enum, pred, succ, class BoundedEnum, Cardinality(..), fromEnum, toEnum, cardinality)
 import Data.List as L
+import Data.Maybe (Maybe)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
-import Data.Variant.Internal (RLProxy(..), class VariantTags, variantTags, VariantCase, VariantRep(..), lookupEq, lookupOrd, lookup, class Contractable, RProxy(..), contractWith, unsafeGet, unsafeHas, class VariantMatchCases)
 import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantTags, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -216,6 +220,115 @@ instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq 
       eqs = variantEqs (RLProxy ∷ RLProxy rl)
     in
       lookupEq tags eqs c1 c2
+
+class VariantBounded (rl ∷ R.RowList) where
+  variantBounded ∷ RLProxy rl → L.List (BoundedDict VariantCase)
+
+instance boundedVariantNil ∷ VariantBounded R.Nil where
+  variantBounded _ = L.Nil
+
+instance boundedVariantCons ∷ (VariantBounded rs, Bounded a) ⇒ VariantBounded (R.Cons sym a rs) where
+  variantBounded _ = L.Cons dict (variantBounded (RLProxy ∷ RLProxy rs))
+    where
+    dict ∷ BoundedDict VariantCase
+    dict =
+      { top: coerce top
+      , bottom: coerce bottom
+      }
+
+    coerce ∷ a → VariantCase
+    coerce = unsafeCoerce
+
+instance boundedVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBounded rl) ⇒ Bounded (Variant r) where
+  top =
+    let
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      dicts = variantBounded (RLProxy ∷ RLProxy rl)
+      coerce = unsafeCoerce ∷ VariantRep VariantCase → Variant r
+    in
+      coerce $ VariantRep $ lookupLast "top" _.top tags dicts
+
+  bottom =
+    let
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      dicts = variantBounded (RLProxy ∷ RLProxy rl)
+      coerce = unsafeCoerce ∷ VariantRep VariantCase → Variant r
+    in
+      coerce $ VariantRep $ lookupFirst "bottom" _.bottom tags dicts
+
+class VariantBounded rl ⇐ VariantBoundedEnums rl where
+  variantBoundedEnums ∷ RLProxy rl → L.List (BoundedEnumDict VariantCase)
+
+instance enumVariantNil ∷ VariantBoundedEnums R.Nil where
+  variantBoundedEnums _ = L.Nil
+
+instance enumVariantCons ∷ (VariantBoundedEnums rs, BoundedEnum a) ⇒ VariantBoundedEnums (R.Cons sym a rs) where
+  variantBoundedEnums _ = L.Cons dict (variantBoundedEnums (RLProxy ∷ RLProxy rs))
+    where
+    dict ∷ BoundedEnumDict VariantCase
+    dict =
+      { pred: coerceAToMbA pred
+      , succ: coerceAToMbA succ
+      , fromEnum: coerceFromEnum fromEnum
+      , toEnum: coerceToEnum toEnum
+      , cardinality: coerceCardinality cardinality
+      }
+
+    coerceA ∷ a → VariantCase
+    coerceA = unsafeCoerce
+
+    coerceAToMbA ∷ (a → Maybe a) → VariantCase → Maybe VariantCase
+    coerceAToMbA = unsafeCoerce
+
+    coerceFromEnum ∷ (a → Int) → VariantCase → Int
+    coerceFromEnum = unsafeCoerce
+
+    coerceToEnum ∷ (Int → Maybe a) → Int → Maybe VariantCase
+    coerceToEnum = unsafeCoerce
+
+    coerceCardinality ∷ Cardinality a → Int
+    coerceCardinality = unsafeCoerce
+
+instance enumVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBoundedEnums rl) ⇒ Enum (Variant r) where
+  pred a =
+    let
+      rep = unsafeCoerce a ∷ VariantRep VariantCase
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      bounds = variantBounded (RLProxy ∷ RLProxy rl)
+      dicts = variantBoundedEnums (RLProxy ∷ RLProxy rl)
+      coerce = unsafeCoerce ∷ Maybe (VariantRep VariantCase) → Maybe (Variant r)
+    in
+      coerce $ lookupPred rep tags bounds dicts
+
+  succ a =
+    let
+      rep = unsafeCoerce a ∷ VariantRep VariantCase
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      bounds = variantBounded (RLProxy ∷ RLProxy rl)
+      dicts = variantBoundedEnums (RLProxy ∷ RLProxy rl)
+      coerce = unsafeCoerce ∷ Maybe (VariantRep VariantCase) → Maybe (Variant r)
+    in
+      coerce $ lookupSucc rep tags bounds dicts
+
+instance boundedEnumVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBoundedEnums rl) ⇒ BoundedEnum (Variant r) where
+  cardinality =
+    Cardinality $ lookupCardinality $ variantBoundedEnums (RLProxy ∷ RLProxy rl)
+
+  fromEnum a =
+    let
+      rep = unsafeCoerce a ∷ VariantRep VariantCase
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      dicts = variantBoundedEnums (RLProxy ∷ RLProxy rl)
+    in
+      lookupFromEnum rep tags dicts
+
+  toEnum n =
+    let
+      tags = variantTags (RLProxy ∷ RLProxy rl)
+      dicts = variantBoundedEnums (RLProxy ∷ RLProxy rl)
+      coerceV = unsafeCoerce ∷ Maybe (VariantRep VariantCase) → Maybe (Variant r)
+    in
+      coerceV $ lookupToEnum n tags dicts
 
 class VariantOrds (rl ∷ R.RowList) where
   variantOrds ∷ RLProxy rl → L.List (VariantCase → VariantCase → Ordering)

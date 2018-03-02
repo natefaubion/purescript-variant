@@ -1,6 +1,7 @@
 module Test.Variant where
 
 import Prelude
+
 import Control.Monad.Eff (Eff)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
