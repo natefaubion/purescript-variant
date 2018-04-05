@@ -9,6 +9,10 @@ module Data.Variant
   , default
   , expand
   , contract
+  , Unvariant(..)
+  , UnvariantF
+  , unvariant
+  , revariant
   , class VariantEqs, variantEqs
   , class VariantOrds, variantOrds
   , class VariantShows, variantShows
@@ -24,7 +28,7 @@ import Data.Enum (class Enum, pred, succ, class BoundedEnum, Cardinality(..), fr
 import Data.List as L
 import Data.Maybe (Maybe)
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
+import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantTags, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
@@ -197,6 +201,36 @@ contract v =
 
   coerceR ∷ Variant gt → Variant lt
   coerceR = unsafeCoerce
+
+type UnvariantF r x =
+  ∀ s t o
+  . IsSymbol s
+  ⇒ R.Cons s t o r
+  ⇒ SProxy s → t → x
+
+newtype Unvariant r = Unvariant
+  (∀ x. UnvariantF r x → x)
+
+unvariant
+  ∷ ∀ r
+  . Variant r
+  → Unvariant r
+unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
+  VariantRep o →
+    Unvariant \f →
+      coerce f {reflectSymbol: const o.type} {} SProxy o.value
+
+  where
+  coerce
+    ∷ ∀ x
+    . UnvariantF r x
+    → { reflectSymbol ∷ SProxy "" → String }
+    → {}
+    → SProxy "" → Unit → x
+  coerce = unsafeCoerce
+
+revariant ∷ ∀ r . Unvariant r -> Variant r
+revariant (Unvariant f) = f inj
 
 class VariantEqs (rl ∷ R.RowList) where
   variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
