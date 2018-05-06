@@ -1,13 +1,14 @@
 module Test.VariantF where
 
 import Prelude
-import Control.Monad.Eff (Eff)
-import Data.List as L
+
 import Data.Either (Either(..))
 import Data.Functor.Variant (VariantF, on, onMatch, case_, default, match, inj, prj, SProxy(..), FProxy, contract)
+import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
-import Test.Assert (assert', ASSERT)
+import Effect (Effect)
+import Test.Assert (assert')
 
 type TestVariants =
   ( foo ∷ FProxy Maybe
@@ -33,7 +34,7 @@ bar = inj _bar (Tuple "bar" 42)
 baz ∷ ∀ r. VariantF (baz ∷ FProxy (Either String) | r) Int
 baz = inj _baz (Left "baz")
 
-test ∷ Eff (assert ∷ ASSERT) Unit
+test ∷ Effect Unit
 test = do
   assert' "prj: Foo" $ prj _foo foo == Just (Just 42)
   assert' "prj: !Foo" $ prj _foo bar == Nothing ∷ Maybe (Maybe Int)

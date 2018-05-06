@@ -2,11 +2,11 @@ module Test.Variant where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract)
-import Test.Assert (assert', ASSERT)
+import Effect (Effect)
+import Test.Assert (assert')
 
 type TestVariants =
   ( foo ∷ Int
@@ -32,7 +32,7 @@ bar = inj _bar "bar"
 baz ∷ ∀ r. Variant (baz ∷ Boolean | r)
 baz = inj _baz true
 
-test ∷ Eff (assert ∷ ASSERT) Unit
+test ∷ Effect Unit
 test = do
   assert' "prj: Foo" $ prj _foo foo == Just 42
   assert' "prj: !Foo" $ prj _foo bar == Nothing ∷ Maybe Int
