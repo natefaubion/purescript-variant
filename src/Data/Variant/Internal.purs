@@ -30,9 +30,9 @@ import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Maybe (Maybe(..))
 import Data.Maybe as M
-import Data.Record.Unsafe (unsafeGet, unsafeHas) as Exports
 import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
 import Partial.Unsafe (unsafeCrashWith)
+import Record.Unsafe (unsafeGet, unsafeHas) as Exports
 import Type.Equality (class TypeEquals)
 import Type.Row (RProxy(..), RLProxy(..)) as Exports
 import Type.Row (RProxy, RLProxy(..))
@@ -50,7 +50,7 @@ class VariantMatchCases (rl ∷ R.RowList) (vo ∷ # Type) b | rl → vo b
 
 instance variantMatchCons
   ∷ ( VariantMatchCases rl vo' b
-    , RowCons sym a vo' vo
+    , R.Cons sym a vo' vo
     , TypeEquals k (a → b)
     )
   ⇒ VariantMatchCases (R.Cons sym k rl) vo b
@@ -62,7 +62,7 @@ class VariantFMatchCases (rl ∷ R.RowList) (vo ∷ # Type) a b | rl → vo a b
 
 instance variantFMatchCons
   ∷ ( VariantFMatchCases rl vo' a b
-    , RowCons sym (FProxy f) vo' vo
+    , R.Cons sym (FProxy f) vo' vo
     , TypeEquals k (f a → b)
     )
   ⇒ VariantFMatchCases (R.Cons sym k rl) vo a b
@@ -250,7 +250,7 @@ class Contractable gt lt where
 
 instance contractWithInstance
   ∷ ( R.RowToList lt ltl
-    , Union lt a gt
+    , R.Union lt a gt
     , VariantTags ltl
     )
   ⇒ Contractable gt lt

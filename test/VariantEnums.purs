@@ -2,11 +2,11 @@ module Test.VariantEnums where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
 import Data.Enum (Cardinality(..), cardinality, succ, pred, toEnum, fromEnum)
 import Data.Maybe (Maybe(..))
 import Data.Variant (SProxy(..), Variant, inj)
-import Test.Assert (assert', ASSERT)
+import Effect (Effect)
+import Test.Assert (assert')
 
 type T = Variant
   ( a ∷ Unit
@@ -24,7 +24,7 @@ _a = SProxy ∷ SProxy "a"
 _b = SProxy ∷ SProxy "b"
 _c = SProxy ∷ SProxy "c"
 
-test ∷ Eff (assert ∷ ASSERT) Unit
+test ∷ Effect Unit
 test = do
   assert' "bottom: T" $ inj _a unit == (bottom ∷ T)
   assert' "top: T" $ inj _c unit == (top ∷ T)
