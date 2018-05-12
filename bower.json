@@ -38,4 +38,5 @@
     "purescript-console": "#compiler/0.12",
     "purescript-assert": "#compiler/0.12",
     "purescript-either": "#compiler/0.12"
-  }}
+  }
+}
