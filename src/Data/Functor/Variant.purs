@@ -22,6 +22,7 @@ import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
+import Prim.Row as Row
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
 import Type.Row as R
@@ -57,7 +58,7 @@ instance functorVariantF ∷ Functor (VariantF r) where
 -- | ```
 inj
   ∷ ∀ sym f a r1 r2
-  . RowCons sym (FProxy f) r1 r2
+  . Row.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
   ⇒ Functor f
   ⇒ SProxy sym
@@ -76,7 +77,7 @@ inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
 -- | ```
 prj
   ∷ ∀ sym f a r1 r2 g
-  . RowCons sym (FProxy f) r1 r2
+  . Row.Cons sym (FProxy f) r1 r2
   ⇒ Alternative g
   ⇒ IsSymbol sym
   ⇒ SProxy sym
@@ -89,7 +90,7 @@ prj p = on p pure (const empty)
 -- | removed.
 on
   ∷ ∀ sym f a b r1 r2
-  . RowCons sym (FProxy f) r1 r2
+  . Row.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → (f a → b)
@@ -127,7 +128,7 @@ onMatch
   ∷ ∀ rl r r1 r2 r3 a b
   . R.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 r2 r3
+  ⇒ Row.Union r1 r2 r3
   ⇒ Record r
   → (VariantF r2 a → b)
   → VariantF r3 a
@@ -169,7 +170,7 @@ match
   ∷ ∀ rl r r1 r2 a b
   . R.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 () r2
+  ⇒ Row.Union r1 () r2
   ⇒ Record r
   → VariantF r2 a
   → b
@@ -189,7 +190,7 @@ default a _ = a
 -- | subset of `gt`.
 expand
   ∷ ∀ lt mix gt a
-  . Union lt mix gt
+  . Row.Union lt mix gt
   ⇒ VariantF lt a
   → VariantF gt a
 expand = unsafeCoerce
