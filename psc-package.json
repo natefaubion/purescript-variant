@@ -1,0 +1,16 @@
+{
+  "name": "purescript-variant",
+  "set": "psc-0.12.0-20180524",
+  "source": "https://github.com/purescript/package-sets.git",
+  "depends": [
+    "unsafe-coerce",
+    "typelevel-prelude",
+    "tuples",
+    "record",
+    "prelude",
+    "partial",
+    "maybe",
+    "lists",
+    "enums"
+  ]
+}
