@@ -23,20 +23,19 @@
     "test"
   ],
   "dependencies": {
-    "purescript-prelude": "#compiler/0.12",
-    "purescript-tuples": "#compiler/0.12",
-    "purescript-symbols": "#compiler/0.12",
-    "purescript-unsafe-coerce": "#compiler/0.12",
-    "purescript-partial": "#compiler/0.12",
-    "purescript-maybe": "#compiler/0.12",
-    "purescript-typelevel-prelude": "#compiler/0.12",
-    "purescript-lists": "#compiler/0.12",
-    "purescript-record": "#compiler/0.12",
-    "purescript-enums": "#compiler/0.12"
+    "purescript-prelude": "^4.0.0",
+    "purescript-tuples": "^5.0.0",
+    "purescript-unsafe-coerce": "^4.0.0",
+    "purescript-partial": "^2.0.0",
+    "purescript-maybe": "^4.0.0",
+    "purescript-typelevel-prelude": "^3.0.0",
+    "purescript-lists": "^5.0.0",
+    "purescript-record": "^1.0.0",
+    "purescript-enums": "^4.0.0"
   },
   "devDependencies": {
-    "purescript-console": "#compiler/0.12",
-    "purescript-assert": "#compiler/0.12",
-    "purescript-either": "#compiler/0.12"
+    "purescript-console": "^4.0.0",
+    "purescript-assert": "^4.0.0",
+    "purescript-either": "^4.0.0"
   }
 }
