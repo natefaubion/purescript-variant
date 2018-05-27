@@ -40,7 +40,7 @@ foreign import data Variant ∷ # Type → Type
 -- | ```
 inj
   ∷ ∀ sym a r1 r2
-  . RowCons sym a r1 r2
+  . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → a
@@ -58,7 +58,7 @@ inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
 -- | ```
 prj
   ∷ ∀ sym a r1 r2 f
-  . RowCons sym a r1 r2
+  . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
   ⇒ Alternative f
   ⇒ SProxy sym
@@ -71,7 +71,7 @@ prj p = on p pure (const empty)
 -- | removed.
 on
   ∷ ∀ sym a b r1 r2
-  . RowCons sym a r1 r2
+  . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → (a → b)
@@ -109,7 +109,7 @@ onMatch
   ∷ ∀ rl r r1 r2 r3 b
   . R.RowToList r rl
   ⇒ VariantMatchCases rl r1 b
-  ⇒ Union r1 r2 r3
+  ⇒ R.Union r1 r2 r3
   ⇒ Record r
   → (Variant r2 → b)
   → Variant r3
@@ -151,7 +151,7 @@ match
   ∷ ∀ rl r r1 r2 b
   . R.RowToList r rl
   ⇒ VariantMatchCases rl r1 b
-  ⇒ Union r1 () r2
+  ⇒ R.Union r1 () r2
   ⇒ Record r
   → Variant r2
   → b
@@ -171,7 +171,7 @@ default a _ = a
 -- | subset of `gt`.
 expand
   ∷ ∀ lt a gt
-  . Union lt a gt
+  . R.Union lt a gt
   ⇒ Variant lt
   → Variant gt
 expand = unsafeCoerce
