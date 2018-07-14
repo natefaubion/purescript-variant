@@ -108,7 +108,7 @@ instance traversableVariantF ::
 -- | ```
 inj
   ∷ ∀ sym f a r1 r2
-  . RowCons sym (FProxy f) r1 r2
+  . R.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
   ⇒ Functor f
   ⇒ SProxy sym
@@ -127,7 +127,7 @@ inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
 -- | ```
 prj
   ∷ ∀ sym f a r1 r2 g
-  . RowCons sym (FProxy f) r1 r2
+  . R.Cons sym (FProxy f) r1 r2
   ⇒ Alternative g
   ⇒ IsSymbol sym
   ⇒ SProxy sym
@@ -140,7 +140,7 @@ prj p = on p pure (const empty)
 -- | removed.
 on
   ∷ ∀ sym f a b r1 r2
-  . RowCons sym (FProxy f) r1 r2
+  . R.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → (f a → b)
@@ -178,7 +178,7 @@ onMatch
   ∷ ∀ rl r r1 r2 r3 a b
   . R.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 r2 r3
+  ⇒ R.Union r1 r2 r3
   ⇒ Record r
   → (VariantF r2 a → b)
   → VariantF r3 a
@@ -220,7 +220,7 @@ match
   ∷ ∀ rl r r1 r2 a b
   . R.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 () r2
+  ⇒ R.Union r1 () r2
   ⇒ Record r
   → VariantF r2 a
   → b
@@ -240,7 +240,7 @@ default a _ = a
 -- | subset of `gt`.
 expand
   ∷ ∀ lt mix gt a
-  . Union lt mix gt
+  . R.Union lt mix gt
   ⇒ VariantF lt a
   → VariantF gt a
 expand = unsafeCoerce
