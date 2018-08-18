@@ -9,6 +9,10 @@ module Data.Functor.Variant
   , default
   , expand
   , contract
+  , UnvariantF(..)
+  , UnvariantF'
+  , unvariantF
+  , revariantF
   , class VariantFShows, variantFShows
   , module Exports
   ) where
@@ -18,7 +22,7 @@ import Prelude
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Symbol (SProxy, class IsSymbol, reflectSymbol)
+import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
@@ -32,6 +36,8 @@ newtype VariantFRep f a = VariantFRep
   , value ∷ f a
   , map ∷ ∀ x y. (x → y) → f x → f y
   }
+
+data UnknownF a
 
 data VariantF (f ∷ # Type) a
 
@@ -215,6 +221,50 @@ contract v =
 
   coerceR ∷ VariantF gt a → VariantF lt a
   coerceR = unsafeCoerce
+
+type UnvariantF' r a x =
+  ∀ s f o
+  . IsSymbol s
+  ⇒ R.Cons s (FProxy f) o r
+  ⇒ Functor f
+  ⇒ SProxy s
+  → f a
+  → x
+
+newtype UnvariantF r a = UnvariantF
+  (∀ x. UnvariantF' r a x → x)
+
+-- | A low-level eliminator which reifies the `IsSymbol`, `Cons` and
+-- | `Functor` constraints require to reconstruct the Variant. This
+-- | lets you work generically with some VariantF at runtime.
+unvariantF
+  ∷ ∀ r a
+  . VariantF r a
+  → UnvariantF r a
+unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
+  VariantFRep o →
+    UnvariantF \f →
+      coerce f
+        { reflectSymbol: const o.type }
+        {}
+        { map: o.map }
+        SProxy
+        o.value
+  where
+  coerce
+    ∷ ∀ x
+    . UnvariantF' r a x
+    → { reflectSymbol ∷ SProxy "" → String }
+    → {}
+    → { map ∷ ∀ a b. (a → b) → UnknownF a → UnknownF b }
+    → SProxy ""
+    → UnknownF Unit
+    → x
+  coerce = unsafeCoerce
+
+-- | Reconstructs a VariantF given an UnvariantF eliminator.
+revariantF ∷ ∀ r a. UnvariantF r a -> VariantF r a
+revariantF (UnvariantF f) = f inj
 
 class VariantFShows (rl ∷ R.RowList) x where
   variantFShows ∷ RLProxy rl → Proxy x → L.List (VariantCase → String)
