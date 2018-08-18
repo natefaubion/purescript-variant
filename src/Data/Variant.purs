@@ -10,7 +10,7 @@ module Data.Variant
   , expand
   , contract
   , Unvariant(..)
-  , UnvariantF
+  , Unvariant'
   , unvariant
   , revariant
   , class VariantEqs, variantEqs
@@ -202,15 +202,20 @@ contract v =
   coerceR ∷ Variant gt → Variant lt
   coerceR = unsafeCoerce
 
-type UnvariantF r x =
+type Unvariant' r x =
   ∀ s t o
   . IsSymbol s
   ⇒ R.Cons s t o r
-  ⇒ SProxy s → t → x
+  ⇒ SProxy s
+  → t
+  → x
 
 newtype Unvariant r = Unvariant
-  (∀ x. UnvariantF r x → x)
+  (∀ x. Unvariant' r x → x)
 
+-- | A low-level eliminator which reifies the `IsSymbol` and `Cons`
+-- | constraints required to reconstruct the Variant. This lets you
+-- | work generically with some Variant at runtime.
 unvariant
   ∷ ∀ r
   . Variant r
@@ -218,18 +223,20 @@ unvariant
 unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
   VariantRep o →
     Unvariant \f →
-      coerce f {reflectSymbol: const o.type} {} SProxy o.value
-
+      coerce f { reflectSymbol: const o.type } {} SProxy o.value
   where
   coerce
     ∷ ∀ x
-    . UnvariantF r x
+    . Unvariant' r x
     → { reflectSymbol ∷ SProxy "" → String }
     → {}
-    → SProxy "" → Unit → x
+    → SProxy ""
+    → Unit
+    → x
   coerce = unsafeCoerce
 
-revariant ∷ ∀ r . Unvariant r -> Variant r
+-- | Reconstructs a Variant given an Unvariant eliminator.
+revariant ∷ ∀ r. Unvariant r -> Variant r
 revariant (Unvariant f) = f inj
 
 class VariantEqs (rl ∷ R.RowList) where

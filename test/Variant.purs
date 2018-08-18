@@ -47,7 +47,7 @@ completeness ∷ ∀ r. Variant r → Variant r
 completeness = revariant <<< unvariant
 
 recBefore ∷ Record TestVariants
-recBefore = {foo: 0, bar: "", baz: false}
+recBefore = { foo: 0, bar: "", baz: false }
 
 recAfter ∷ Record TestVariants
 recAfter = build modifyRec recBefore
