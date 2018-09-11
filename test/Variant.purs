@@ -4,9 +4,11 @@ import Prelude
 
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
-import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract)
-import Effect (Effect)
+import Data.Symbol (reflectSymbol)
+import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract, Unvariant(..), unvariant, revariant)
+import Record.Builder (build, modify, Builder())
 import Test.Assert (assert')
+import Effect (Effect)
 
 type TestVariants =
   ( foo ∷ Int
@@ -31,6 +33,24 @@ bar = inj _bar "bar"
 
 baz ∷ ∀ r. Variant (baz ∷ Boolean | r)
 baz = inj _baz true
+
+modifyRec ∷ Builder (Record TestVariants) (Record TestVariants)
+modifyRec = setVariant foo >>> setVariant bar >>> setVariant baz
+  where
+  setVariant
+    ∷ Variant TestVariants
+    → Builder (Record TestVariants) (Record TestVariants)
+  setVariant var = case unvariant var of
+    Unvariant f → f \s v → modify s (const v)
+
+completeness ∷ ∀ r. Variant r → Variant r
+completeness = revariant <<< unvariant
+
+recBefore ∷ Record TestVariants
+recBefore = { foo: 0, bar: "", baz: false }
+
+recAfter ∷ Record TestVariants
+recAfter = build modifyRec recBefore
 
 test ∷ Effect Unit
 test = do
@@ -106,3 +126,12 @@ test = do
     $ contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int))
 
   assert' "show" $ show (foo :: Variant TestVariants) ==  """(inj @"foo" 42)"""
+
+  assert' "unvariant: foo" $
+    let Unvariant f = unvariant (foo ∷ Variant TestVariants)
+    in f \s _ → reflectSymbol s == "foo"
+
+  assert' "unvariant: build record (foo)" $ recAfter.foo == 42
+  assert' "unvariant: build record (bar)" $ recAfter.bar == "bar"
+  assert' "unvariant: build record (baz)" $ recAfter.baz == true
+

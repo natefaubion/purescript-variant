@@ -3,7 +3,7 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (VariantF, on, onMatch, case_, default, match, inj, prj, SProxy(..), FProxy, contract)
+import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -33,6 +33,9 @@ bar = inj _bar (Tuple "bar" 42)
 
 baz ∷ ∀ r. VariantF (baz ∷ FProxy (Either String) | r) Int
 baz = inj _baz (Left "baz")
+
+completeness ∷ ∀ r a. VariantF r a → VariantF r a
+completeness = revariantF <<< unvariantF
 
 test ∷ Effect Unit
 test = do
