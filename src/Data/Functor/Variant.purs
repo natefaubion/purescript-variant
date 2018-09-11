@@ -13,6 +13,8 @@ module Data.Functor.Variant
   , class TraversableVFRL
   , class FoldableVFRL
   , traverseVFRL
+  , foldrVFRL
+  , foldlVFRL
   , foldMapVFRL
   , module Exports
   ) where
@@ -21,7 +23,6 @@ import Prelude
 
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
-import Data.Monoid (class Monoid)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
@@ -31,6 +32,7 @@ import Partial.Unsafe (unsafeCrashWith)
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
 import Type.Row as R
+import Prim.Row as Row
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype VariantFRep f a = VariantFRep
@@ -57,17 +59,25 @@ instance functorVariantF ∷ Functor (VariantF r) where
     coerceV = unsafeCoerce
 
 class FoldableVFRL (rl :: R.RowList) (row :: # Type) | rl -> row where
+  foldrVFRL :: forall a b. RLProxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
+  foldlVFRL :: forall a b. RLProxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
   foldMapVFRL :: forall a m. Monoid m => RLProxy rl -> (a -> m) -> VariantF row a -> m
 
 instance foldableNil :: FoldableVFRL R.Nil () where
-  foldMapVFRL _ f = case_
+  foldrVFRL _ _ _ = case_
+  foldlVFRL _ _ _ = case_
+  foldMapVFRL _ _ = case_
 
 instance foldableCons ::
   ( IsSymbol k
   , TF.Foldable f
   , FoldableVFRL rl r
-  , RowCons k (FProxy f) r r'
+  , Row.Cons k (FProxy f) r r'
   ) => FoldableVFRL (R.Cons k (FProxy f) rl) r' where
+  foldrVFRL _ f b = on k (TF.foldr f b) (foldrVFRL (RLProxy :: RLProxy rl) f b)
+    where k = SProxy :: SProxy k
+  foldlVFRL _ f b = on k (TF.foldl f b) (foldlVFRL (RLProxy :: RLProxy rl) f b)
+    where k = SProxy :: SProxy k
   foldMapVFRL _ f = on k (TF.foldMap f) (foldMapVFRL (RLProxy :: RLProxy rl) f)
     where k = SProxy :: SProxy k
 
@@ -81,8 +91,8 @@ instance traversableCons ::
   ( IsSymbol k
   , TF.Traversable f
   , TraversableVFRL rl r
-  , RowCons k (FProxy f) r r'
-  , Union r bleh r'
+  , Row.Cons k (FProxy f) r r'
+  , R.Union r bleh r'
   ) => TraversableVFRL (R.Cons k (FProxy f) rl) r' where
   traverseVFRL _ f = on k (TF.traverse f >>> map (inj k))
     (traverseVFRL (RLProxy :: RLProxy rl) f >>> map expand)
@@ -91,15 +101,15 @@ instance traversableCons ::
 instance foldableVariantF ::
   (R.RowToList row rl, FoldableVFRL rl row) =>
   TF.Foldable (VariantF row) where
+    foldr = foldrVFRL (RLProxy :: RLProxy rl)
+    foldl = foldlVFRL (RLProxy :: RLProxy rl)
     foldMap = foldMapVFRL (RLProxy :: RLProxy rl)
-    foldr a = TF.foldrDefault a
-    foldl a = TF.foldlDefault a
 
 instance traversableVariantF ::
   (R.RowToList row rl, TraversableVFRL rl row) =>
   TF.Traversable (VariantF row) where
     traverse = traverseVFRL (RLProxy :: RLProxy rl)
-    sequence a = TF.sequenceDefault a
+    sequence = TF.sequenceDefault
 
 -- | Inject into the variant at a given label.
 -- | ```purescript
@@ -108,7 +118,7 @@ instance traversableVariantF ::
 -- | ```
 inj
   ∷ ∀ sym f a r1 r2
-  . RowCons sym (FProxy f) r1 r2
+  . R.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
   ⇒ Functor f
   ⇒ SProxy sym
@@ -127,7 +137,7 @@ inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
 -- | ```
 prj
   ∷ ∀ sym f a r1 r2 g
-  . RowCons sym (FProxy f) r1 r2
+  . R.Cons sym (FProxy f) r1 r2
   ⇒ Alternative g
   ⇒ IsSymbol sym
   ⇒ SProxy sym
@@ -140,7 +150,7 @@ prj p = on p pure (const empty)
 -- | removed.
 on
   ∷ ∀ sym f a b r1 r2
-  . RowCons sym (FProxy f) r1 r2
+  . R.Cons sym (FProxy f) r1 r2
   ⇒ IsSymbol sym
   ⇒ SProxy sym
   → (f a → b)
@@ -178,7 +188,7 @@ onMatch
   ∷ ∀ rl r r1 r2 r3 a b
   . R.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 r2 r3
+  ⇒ R.Union r1 r2 r3
   ⇒ Record r
   → (VariantF r2 a → b)
   → VariantF r3 a
@@ -220,7 +230,7 @@ match
   ∷ ∀ rl r r1 r2 a b
   . R.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
-  ⇒ Union r1 () r2
+  ⇒ R.Union r1 () r2
   ⇒ Record r
   → VariantF r2 a
   → b
@@ -240,7 +250,7 @@ default a _ = a
 -- | subset of `gt`.
 expand
   ∷ ∀ lt mix gt a
-  . Union lt mix gt
+  . R.Union lt mix gt
   ⇒ VariantF lt a
   → VariantF gt a
 expand = unsafeCoerce
