@@ -14,6 +14,12 @@ module Data.Functor.Variant
   , unvariantF
   , revariantF
   , class VariantFShows, variantFShows
+  , class TraversableVFRL
+  , class FoldableVFRL
+  , traverseVFRL
+  , foldrVFRL
+  , foldlVFRL
+  , foldMapVFRL
   , module Exports
   ) where
 
@@ -23,12 +29,14 @@ import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
+import Data.Traversable as TF
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
 import Type.Row as R
+import Prim.Row as Row
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype VariantFRep f a = VariantFRep
@@ -55,6 +63,59 @@ instance functorVariantF ∷ Functor (VariantF r) where
 
     coerceV ∷ ∀ f a. VariantFRep f a → VariantF r a
     coerceV = unsafeCoerce
+
+class FoldableVFRL (rl :: R.RowList) (row :: # Type) | rl -> row where
+  foldrVFRL :: forall a b. RLProxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
+  foldlVFRL :: forall a b. RLProxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
+  foldMapVFRL :: forall a m. Monoid m => RLProxy rl -> (a -> m) -> VariantF row a -> m
+
+instance foldableNil :: FoldableVFRL R.Nil () where
+  foldrVFRL _ _ _ = case_
+  foldlVFRL _ _ _ = case_
+  foldMapVFRL _ _ = case_
+
+instance foldableCons ::
+  ( IsSymbol k
+  , TF.Foldable f
+  , FoldableVFRL rl r
+  , Row.Cons k (FProxy f) r r'
+  ) => FoldableVFRL (R.Cons k (FProxy f) rl) r' where
+  foldrVFRL _ f b = on k (TF.foldr f b) (foldrVFRL (RLProxy :: RLProxy rl) f b)
+    where k = SProxy :: SProxy k
+  foldlVFRL _ f b = on k (TF.foldl f b) (foldlVFRL (RLProxy :: RLProxy rl) f b)
+    where k = SProxy :: SProxy k
+  foldMapVFRL _ f = on k (TF.foldMap f) (foldMapVFRL (RLProxy :: RLProxy rl) f)
+    where k = SProxy :: SProxy k
+
+class FoldableVFRL rl row <= TraversableVFRL (rl :: R.RowList) (row :: # Type) | rl -> row where
+  traverseVFRL :: forall f a b. Applicative f => RLProxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
+
+instance traversableNil :: TraversableVFRL R.Nil () where
+  traverseVFRL _ f = case_
+
+instance traversableCons ::
+  ( IsSymbol k
+  , TF.Traversable f
+  , TraversableVFRL rl r
+  , Row.Cons k (FProxy f) r r'
+  , R.Union r rx r'
+  ) => TraversableVFRL (R.Cons k (FProxy f) rl) r' where
+  traverseVFRL _ f = on k (TF.traverse f >>> map (inj k))
+    (traverseVFRL (RLProxy :: RLProxy rl) f >>> map expand)
+    where k = SProxy :: SProxy k
+
+instance foldableVariantF ::
+  (R.RowToList row rl, FoldableVFRL rl row) =>
+  TF.Foldable (VariantF row) where
+    foldr = foldrVFRL (RLProxy :: RLProxy rl)
+    foldl = foldlVFRL (RLProxy :: RLProxy rl)
+    foldMap = foldMapVFRL (RLProxy :: RLProxy rl)
+
+instance traversableVariantF ::
+  (R.RowToList row rl, TraversableVFRL rl row) =>
+  TF.Traversable (VariantF row) where
+    traverse = traverseVFRL (RLProxy :: RLProxy rl)
+    sequence = TF.sequenceDefault
 
 -- | Inject into the variant at a given label.
 -- | ```purescript

@@ -7,8 +7,5 @@
   "devDependencies": {
     "pulp": "^12.2.0",
     "purescript-psa": "^0.6.0"
-  },
-  "dependencies": {
-    "canvas-prebuilt": "^1.6.5-prerelease.1"
   }
 }
