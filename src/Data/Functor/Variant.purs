@@ -98,7 +98,7 @@ instance traversableCons ::
   , TF.Traversable f
   , TraversableVFRL rl r
   , Row.Cons k (FProxy f) r r'
-  , R.Union r bleh r'
+  , R.Union r rx r'
   ) => TraversableVFRL (R.Cons k (FProxy f) rl) r' where
   traverseVFRL _ f = on k (TF.traverse f >>> map (inj k))
     (traverseVFRL (RLProxy :: RLProxy rl) f >>> map expand)
