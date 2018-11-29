@@ -7,6 +7,8 @@ module Data.Variant.Internal
   , class Contractable, contractWith
   , class VariantMatchCases
   , class VariantFMatchCases
+  , class VariantMapCases
+  , class VariantFMapCases
   , lookup
   , lookupTag
   , lookupEq
@@ -69,6 +71,36 @@ instance variantFMatchCons
 
 instance variantFMatchNil
   ∷ VariantFMatchCases R.Nil () a b
+
+class VariantMapCases (rl ∷ R.RowList)
+  (ri ∷ # Type) (ro ∷ # Type)
+  | rl → ri ro
+
+instance variantMapCons
+  ∷ ( R.Cons sym a ri' ri
+    , R.Cons sym b ro' ro
+    , VariantMapCases rl ri' ro'
+    , TypeEquals k (a → b)
+    )
+  ⇒ VariantMapCases (R.Cons sym k rl) ri ro
+
+instance variantMapNil
+  ∷ VariantMapCases R.Nil () ()
+
+class VariantFMapCases (rl ∷ R.RowList)
+  (ri ∷ # Type) (ro ∷ # Type) (a :: Type) (b :: Type)
+  | rl → ri ro
+
+instance variantFMapCons
+  ∷ ( R.Cons sym (FProxy f) ri' ri
+    , R.Cons sym (FProxy g) ro' ro
+    , VariantFMapCases rl ri' ro' a b
+    , TypeEquals k (f a → g b)
+    )
+  ⇒ VariantFMapCases (R.Cons sym k rl) ri ro a b
+
+instance variantFMapNil
+  ∷ VariantFMapCases R.Nil ri ro a b
 
 foreign import data VariantCase ∷ Type
 

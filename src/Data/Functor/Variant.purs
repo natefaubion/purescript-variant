@@ -30,8 +30,8 @@ import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
-import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases, class VariantFMapCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantFMapCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
@@ -210,6 +210,53 @@ onMatch r k v =
 
   coerceR ∷ VariantF r3 a → VariantF r2 a
   coerceR = unsafeCoerce
+
+{-
+mapSome
+  ∷ ∀ r rl ri ro r1 r2 r3 r4 a b
+  . R.RowToList r rl
+  ⇒ VariantFMapCases rl ri ro a b
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Record r
+  → (VariantF r2 a → VariantF r3 b)
+  → VariantF r1 a
+  → VariantF r3 b
+mapSome r k v =
+  case coerceV v of
+    VariantFRep v' | unsafeHas v'.type r →
+      coerceV' (VariantFRep { type: v'.type, map: ?help, value: unsafeGet v'.type r v'.value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ f. VariantF r1 a → VariantFRep f a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ g. VariantFRep g b → VariantF r3 b
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ VariantF r1 a → VariantF r2 a
+  coerceR = unsafeCoerce
+
+mapAll
+  ∷ ∀ r rl ri ro
+  . R.RowToList r rl
+  ⇒ VariantFMapCases rl ri ro a b
+  ⇒ Record r
+  → VariantF ri a
+  → VariantF ro b
+mapAll r v =
+  case coerceV v of
+    VariantFRep v' →
+      coerceV' (VariantFRep { type: v'.type, map: ?help, value: unsafeGet v'.type r v'.value })
+
+  where
+  coerceV ∷ ∀ x. VariantF ri a → VariantFRep x
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ x. VariantFRep x → VariantF ro b
+  coerceV' = unsafeCoerce
+-}
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript

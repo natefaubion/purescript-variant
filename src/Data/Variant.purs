@@ -29,8 +29,8 @@ import Data.List as L
 import Data.Maybe (Maybe)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
-import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantTags, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantMapCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantMapCases, class VariantTags, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -129,6 +129,51 @@ onMatch r k v =
 
   coerceR ∷ Variant r3 → Variant r2
   coerceR = unsafeCoerce
+
+mapSome
+  ∷ ∀ r rl ri ro r1 r2 r3 r4
+  . R.RowToList r rl
+  ⇒ VariantMapCases rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Record r
+  → (Variant r2 → Variant r3)
+  → Variant r1
+  → Variant r3
+mapSome r k v =
+  case coerceV v of
+    VariantRep v' | unsafeHas v'.type r →
+      coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ a. Variant r1 → VariantRep a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ a. VariantRep a → Variant r3
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ Variant r1 → Variant r2
+  coerceR = unsafeCoerce
+
+mapAll
+  ∷ ∀ r rl ri ro
+  . R.RowToList r rl
+  ⇒ VariantMapCases rl ri ro
+  ⇒ Record r
+  → Variant ri
+  → Variant ro
+mapAll r v =
+  case coerceV v of
+    VariantRep v' →
+      coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
+
+  where
+  coerceV ∷ ∀ a. Variant ri → VariantRep a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ a. VariantRep a → Variant ro
+  coerceV' = unsafeCoerce
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
