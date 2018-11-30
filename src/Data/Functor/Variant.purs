@@ -7,6 +7,9 @@ module Data.Functor.Variant
   , case_
   , match
   , default
+  , mapSome
+  , mapSomeExpand
+  , mapAll
   , expand
   , contract
   , UnvariantF(..)
@@ -14,6 +17,7 @@ module Data.Functor.Variant
   , unvariantF
   , revariantF
   , class VariantFShows, variantFShows
+  , class VariantFMaps, variantFMaps, Mapper
   , class TraversableVFRL
   , class FoldableVFRL
   , traverseVFRL
@@ -39,10 +43,12 @@ import Type.Row as R
 import Prim.Row as Row
 import Unsafe.Coerce (unsafeCoerce)
 
+newtype Mapper f = Mapper (forall a b. (a → b) → f a → f b)
+
 newtype VariantFRep f a = VariantFRep
   { type ∷ String
   , value ∷ f a
-  , map ∷ ∀ x y. (x → y) → f x → f y
+  , map ∷ Mapper f
   }
 
 data UnknownF a
@@ -54,7 +60,7 @@ instance functorVariantF ∷ Functor (VariantF r) where
     case coerceY a of
       VariantFRep v → coerceV $ VariantFRep
         { type: v.type
-        , value: v.map f v.value
+        , value: case v.map of Mapper m → m f v.value
         , map: v.map
         }
     where
@@ -130,7 +136,7 @@ inj
   ⇒ SProxy sym
   → f a
   → VariantF r2 a
-inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
+inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map: Mapper map }
   where
   coerceV ∷ VariantFRep f a → VariantF r2 a
   coerceV = unsafeCoerce
@@ -211,11 +217,13 @@ onMatch r k v =
   coerceR ∷ VariantF r3 a → VariantF r2 a
   coerceR = unsafeCoerce
 
-{-
 mapSome
-  ∷ ∀ r rl ri ro r1 r2 r3 r4 a b
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . R.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
+  ⇒ R.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
   ⇒ R.Union ro r4 r3
   ⇒ Record r
@@ -225,7 +233,11 @@ mapSome
 mapSome r k v =
   case coerceV v of
     VariantFRep v' | unsafeHas v'.type r →
-      coerceV' (VariantFRep { type: v'.type, map: ?help, value: unsafeGet v'.type r v'.value })
+      let
+        tags = variantTags (RLProxy ∷ RLProxy rlo)
+        maps = variantFMaps (RLProxy ∷ RLProxy rlo)
+        map = lookup "map" v'.type tags maps
+      in coerceV' (VariantFRep { type: v'.type, map, value: unsafeGet v'.type r v'.value })
     _ → k (coerceR v)
 
   where
@@ -238,25 +250,68 @@ mapSome r k v =
   coerceR ∷ VariantF r1 a → VariantF r2 a
   coerceR = unsafeCoerce
 
-mapAll
-  ∷ ∀ r rl ri ro
+mapSomeExpand
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . R.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
+  ⇒ R.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Record r
+  → (a → b)
+  → VariantF r1 a
+  → VariantF r3 b
+mapSomeExpand r k v =
+  case coerceV v of
+    VariantFRep v' | unsafeHas v'.type r →
+      let
+        tags = variantTags (RLProxy ∷ RLProxy rlo)
+        maps = variantFMaps (RLProxy ∷ RLProxy rlo)
+        map = lookup "map" v'.type tags maps
+      in coerceV' (VariantFRep { type: v'.type, map, value: unsafeGet v'.type r v'.value })
+    _ → expandR2 (map k (coerceR v))
+
+  where
+  coerceV ∷ ∀ f. VariantF r1 a → VariantFRep f a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ g. VariantFRep g b → VariantF r3 b
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ VariantF r1 a → VariantF r2 a
+  coerceR = unsafeCoerce
+
+  expandR2 ∷ VariantF r2 b → VariantF r3 b
+  expandR2 = unsafeCoerce
+
+mapAll
+  ∷ ∀ r rl rlo ri ro a b
+  . R.RowToList r rl
+  ⇒ VariantFMapCases rl ri ro a b
+  ⇒ R.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
   ⇒ Record r
   → VariantF ri a
   → VariantF ro b
 mapAll r v =
   case coerceV v of
     VariantFRep v' →
-      coerceV' (VariantFRep { type: v'.type, map: ?help, value: unsafeGet v'.type r v'.value })
+      let
+        tags = variantTags (RLProxy ∷ RLProxy rlo)
+        maps = variantFMaps (RLProxy ∷ RLProxy rlo)
+        map = lookup "map" v'.type tags maps
+      in coerceV' (VariantFRep { type: v'.type, map, value: unsafeGet v'.type r v'.value })
 
   where
-  coerceV ∷ ∀ x. VariantF ri a → VariantFRep x
+  coerceV ∷ ∀ f. VariantF ri a → VariantFRep f a
   coerceV = unsafeCoerce
 
-  coerceV' ∷ ∀ x. VariantFRep x → VariantF ro b
+  coerceV' ∷ ∀ f. VariantFRep f b → VariantF ro b
   coerceV' = unsafeCoerce
--}
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
@@ -355,7 +410,7 @@ unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
       coerce f
         { reflectSymbol: const o.type }
         {}
-        { map: o.map }
+        { map: case o.map of Mapper m → m }
         SProxy
         o.value
   where
@@ -396,3 +451,16 @@ instance showVariantF ∷ (R.RowToList r rl, VariantTags rl, VariantFShows rl a,
       body = lookup "show" v.type tags shows (unsafeCoerce v.value ∷ VariantCase)
     in
       "(inj @" <> show v.type <> " " <> body <> ")"
+
+class VariantFMaps (rl ∷ R.RowList) where
+  variantFMaps ∷ RLProxy rl → L.List (Mapper VariantFCase)
+
+instance mapVariantFNil ∷ VariantFMaps R.Nil where
+  variantFMaps _ = L.Nil
+
+instance mapVariantFCons ∷ (VariantFMaps rs, TypeEquals a (FProxy f), Functor f) ⇒ VariantFMaps (R.Cons sym a rs) where
+  variantFMaps _ =
+    L.Cons (coerceMap (Mapper map)) (variantFMaps (RLProxy ∷ RLProxy rs))
+    where
+    coerceMap ∷ Mapper f → Mapper VariantFCase
+    coerceMap = unsafeCoerce

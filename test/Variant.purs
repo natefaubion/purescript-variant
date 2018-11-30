@@ -5,15 +5,21 @@ import Prelude
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Symbol (reflectSymbol)
-import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract, Unvariant(..), unvariant, revariant)
-import Record.Builder (build, modify, Builder())
-import Test.Assert (assert')
+import Data.Variant (SProxy(..), Unvariant(..), Variant, case_, contract, default, expand, inj, mapAll, mapSome, mapSomeExpand, match, on, onMatch, prj, revariant, unvariant)
 import Effect (Effect)
+import Record.Builder (build, modify, Builder)
+import Test.Assert (assert')
 
 type TestVariants =
   ( foo ∷ Int
   , bar ∷ String
   , baz ∷ Boolean
+  )
+
+type TestVariants' =
+  ( foo ∷ String
+  , bar ∷ String
+  , baz ∷ String
   )
 
 _foo ∷ SProxy "foo"
@@ -91,19 +97,48 @@ test = do
   assert' "match: baz" $ match' baz == "baz: true"
 
   let
-    onMatch' ∷ Variant TestVariants → String
+    mapSome' ∷ Variant TestVariants → Variant TestVariants'
+    mapSome' = mapSome
+      { foo: \a → show a
+      , baz: \a → show a
+      } expand
+
+    mapSomeExpand' ∷ forall r.
+      Variant ( foo ∷ Int, baz ∷ Boolean | r ) →
+      Variant ( foo ∷ String, baz ∷ String | r )
+    mapSomeExpand' = mapSomeExpand
+      { foo: \a → show a
+      , baz: \a → show a
+      }
+
+    mapAll' ∷ Variant TestVariants → Variant TestVariants'
+    mapAll' = mapAll
+      { foo: identity show
+      , bar: identity identity
+      , baz: identity show
+      }
+
+    onMatch' ∷ Variant TestVariants' → String
     onMatch' = case_
       # onMatch
-        { foo: \a → "foo: " <> show a
+        { foo: \a → "foo: " <> a
         , bar: \a → "bar: " <> a
         }
       # onMatch
-        { baz: \a → "baz: " <> show a
+        { baz: \a → "baz: " <> a
         }
 
-  assert' "onMatch: foo" $ onMatch' foo == "foo: 42"
-  assert' "onMatch: bar" $ onMatch' bar == "bar: bar"
-  assert' "onMatch: baz" $ onMatch' baz == "baz: true"
+  assert' "onMatch mapSome: foo" $ onMatch' (mapSome' foo) == "foo: 42"
+  assert' "onMatch mapSome: bar" $ onMatch' (mapSome' bar) == "bar: bar"
+  assert' "onMatch mapSome: baz" $ onMatch' (mapSome' baz) == "baz: true"
+
+  assert' "onMatch mapSomeExpand: foo" $ onMatch' (mapSomeExpand' foo) == "foo: 42"
+  assert' "onMatch mapSomeExpand: bar" $ onMatch' (mapSomeExpand' bar) == "bar: bar"
+  assert' "onMatch mapSomeExpand: baz" $ onMatch' (mapSomeExpand' baz) == "baz: true"
+
+  assert' "onMatch mapAll: foo" $ onMatch' (mapAll' foo) == "foo: 42"
+  assert' "onMatch mapAll: bar" $ onMatch' (mapAll' bar) == "bar: bar"
+  assert' "onMatch mapAll: baz" $ onMatch' (mapAll' baz) == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
@@ -125,7 +160,7 @@ test = do
     $ L.null
     $ contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int))
 
-  assert' "show" $ show (foo :: Variant TestVariants) ==  """(inj @"foo" 42)"""
+  assert' "show" $ show (foo ∷ Variant TestVariants) ==  """(inj @"foo" 42)"""
 
   assert' "unvariant: foo" $
     let Unvariant f = unvariant (foo ∷ Variant TestVariants)
@@ -134,4 +169,3 @@ test = do
   assert' "unvariant: build record (foo)" $ recAfter.foo == 42
   assert' "unvariant: build record (bar)" $ recAfter.bar == "bar"
   assert' "unvariant: build record (baz)" $ recAfter.baz == true
-

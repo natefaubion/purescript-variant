@@ -3,7 +3,7 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, expand, inj, mapAll, mapSome, mapSomeExpand, match, on, onMatch, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -12,6 +12,11 @@ import Test.Assert (assert')
 
 type TestVariants =
   ( foo ∷ FProxy Maybe
+  , bar ∷ FProxy (Tuple String)
+  , baz ∷ FProxy (Either String)
+  )
+type TestVariants' =
+  ( foo ∷ FProxy (Either String)
   , bar ∷ FProxy (Tuple String)
   , baz ∷ FProxy (Either String)
   )
@@ -106,9 +111,42 @@ test = do
     map'' ∷ VariantF TestVariants Int → String
     map'' = map (_ + 2) >>> map'
 
+    mapSome' ∷ VariantF TestVariants Int → VariantF TestVariants Int
+    mapSome' = mapSome
+      { baz: \(_ ∷ Either String Int) → Right 20
+      } expand
+
+    mapAll' ∷ VariantF TestVariants Int → VariantF TestVariants Int
+    mapAll' = mapAll
+      { baz: \(_ ∷ Either String Int) → Right 20
+      , bar: \a → a
+      , foo: case _ of
+          Nothing → Just 0
+          Just f → Just f
+      }
+
+    mapSomeExpand' ∷ forall r.
+      VariantF (baz ∷ FProxy (Either String) | r) Int →
+      VariantF (baz ∷ FProxy (Either String) | r) Int
+    mapSomeExpand' = mapSomeExpand
+      { baz: \(_ ∷ Either String Int) → Right 20
+      } identity
+
   assert' "map: foo" $ map'' foo == "foo: (Just 44)"
   assert' "map: bar" $ map'' bar == "bar: (Tuple \"bar\" 44)"
   assert' "map: baz" $ map'' baz == "baz: (Left \"baz\")"
+
+  assert' "mapSome: foo" $ map'' (mapSome' foo) == "foo: (Just 44)"
+  assert' "mapSome: bar" $ map'' (mapSome' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "mapSome: baz" $ map'' (mapSome' baz) == "baz: (Right 22)"
+
+  assert' "mapSomeExpand: foo" $ map'' (mapSomeExpand' foo) == "foo: (Just 44)"
+  assert' "mapSomeExpand: bar" $ map'' (mapSomeExpand' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "mapSomeExpand: baz" $ map'' (mapSomeExpand' baz) == "baz: (Right 22)"
+
+  assert' "mapAll: foo" $ map'' (mapAll' foo) == "foo: (Just 44)"
+  assert' "mapAll: bar" $ map'' (mapAll' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "mapAll: baz" $ map'' (mapAll' baz) == "baz: (Right 22)"
 
   assert' "contract: pass"
     $ isJust
@@ -118,4 +156,4 @@ test = do
     $ L.null
     $ contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ FProxy Maybe) Int)
 
-  assert' "show" $ show (foo :: VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""
+  assert' "show" $ show (foo ∷ VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""

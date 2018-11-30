@@ -88,7 +88,7 @@ instance variantMapNil
   ∷ VariantMapCases R.Nil () ()
 
 class VariantFMapCases (rl ∷ R.RowList)
-  (ri ∷ # Type) (ro ∷ # Type) (a :: Type) (b :: Type)
+  (ri ∷ # Type) (ro ∷ # Type) (a ∷ Type) (b ∷ Type)
   | rl → ri ro
 
 instance variantFMapCons
@@ -100,7 +100,7 @@ instance variantFMapCons
   ⇒ VariantFMapCases (R.Cons sym k rl) ri ro a b
 
 instance variantFMapNil
-  ∷ VariantFMapCases R.Nil ri ro a b
+  ∷ VariantFMapCases R.Nil () () a b
 
 foreign import data VariantCase ∷ Type
 

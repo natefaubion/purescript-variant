@@ -7,6 +7,9 @@ module Data.Variant
   , case_
   , match
   , default
+  , mapSome
+  , mapSomeExpand
+  , mapAll
   , expand
   , contract
   , Unvariant(..)
@@ -154,6 +157,32 @@ mapSome r k v =
   coerceV' = unsafeCoerce
 
   coerceR ∷ Variant r1 → Variant r2
+  coerceR = unsafeCoerce
+
+mapSomeExpand
+  ∷ ∀ r rl ri ro r1 r2 r3 r4
+  . R.RowToList r rl
+  ⇒ VariantMapCases rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ R.Union ro r2 r3
+  ⇒ Record r
+  → Variant r1
+  → Variant r3
+mapSomeExpand r v =
+  case coerceV v of
+    VariantRep v' | unsafeHas v'.type r →
+      coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
+    _ → coerceR v
+
+  where
+  coerceV ∷ ∀ a. Variant r1 → VariantRep a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ a. VariantRep a → Variant r3
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ Variant r1 → Variant r3
   coerceR = unsafeCoerce
 
 mapAll
