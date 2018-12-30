@@ -31,8 +31,8 @@ import Data.List as L
 import Data.Maybe (Maybe)
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
+import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases, class VariantTags, class VariantTravCases, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantMapCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantMapCases, class VariantTags, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
@@ -187,6 +187,65 @@ expandOverMatch
   → Variant r1
   → Variant r3
 expandOverMatch r = overMatch r unsafeExpand where
+  unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
+
+-- | Traverse over one case of a variant, putting the result back at the same label.
+trav
+  ∷ ∀ sym a b r1 r2 r3 r4 m
+  . IsSymbol sym
+  ⇒ R.Cons sym a r1 r2
+  ⇒ R.Cons sym b r4 r3
+  ⇒ Functor m
+  ⇒ SProxy sym
+  → (a → m b)
+  → (Variant r1 → m (Variant r3))
+  → Variant r2
+  → m (Variant r3)
+trav p f = on p (map (inj p) <<< f)
+
+-- | Map over several cases of a variant using a `Record` containing functions
+-- | for each case. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record.
+travMatch
+  ∷ ∀ r rl ri ro r1 r2 r3 r4 m
+  . R.RowToList r rl
+  ⇒ VariantTravCases m rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Functor m
+  ⇒ Record r
+  → (Variant r2 → m (Variant r3))
+  → Variant r1
+  → m (Variant r3)
+travMatch r k v =
+  case coerceV v of
+    VariantRep v' | unsafeHas v'.type r →
+      unsafeGet v'.type r v'.value <#> \value ->
+        coerceV' (VariantRep { type: v'.type, value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ a. Variant r1 → VariantRep a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ a. VariantRep a → Variant r3
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ Variant r1 → Variant r2
+  coerceR = unsafeCoerce
+
+travOverMatch
+  ∷ ∀ r rl ri ro r1 r2 r3 r4 m
+  . R.RowToList r rl
+  ⇒ VariantTravCases m rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Applicative m
+  ⇒ Record r
+  → Variant r1
+  → m (Variant r3)
+travOverMatch r = travMatch r (pure <<< unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
 -- | Combinator for exhaustive pattern matching.

@@ -34,12 +34,12 @@ import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases, class VariantFMapCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantFMapCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantFMapCases, class VariantFMatchCases, class VariantFTravCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantCase, VariantFCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
+import Prim.Row as Row
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
 import Type.Row as R
-import Prim.Row as Row
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Mapper f = Mapper (forall a b. (a → b) → f a → f b)
@@ -262,8 +262,9 @@ overMatch r k v =
   coerceR ∷ VariantF r1 a → VariantF r2 a
   coerceR = unsafeCoerce
 
--- | `expandOverMatch r` is like `expand # overMatch r` but with a more easily
--- | solved constraint (i.e. it can be solved once the type of `r` is known).
+-- | `expandOverMatch r k` is like `(map k >>> expand) # overMatch r` but with
+-- | a more easily solved constraint (i.e. it can be solved once the type of
+-- | `r` is known).
 expandOverMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . R.RowToList r rl
@@ -279,6 +280,74 @@ expandOverMatch
   → VariantF r1 a
   → VariantF r3 b
 expandOverMatch r k = overMatch r (map k >>> unsafeExpand) where
+  unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
+
+trav
+  ∷ ∀ sym f g a b r1 r2 r3 r4 m
+  . R.Cons sym (FProxy f) r1 r2
+  ⇒ R.Cons sym (FProxy g) r4 r3
+  ⇒ IsSymbol sym
+  ⇒ Functor g
+  ⇒ Functor m
+  ⇒ SProxy sym
+  → (f a → m (g b))
+  → (VariantF r1 a → m (VariantF r3 b))
+  → VariantF r2 a
+  → m (VariantF r3 b)
+trav p f = on p (map (inj p) <<< f)
+
+travMatch
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
+  . R.RowToList r rl
+  ⇒ VariantFTravCases m rl ri ro a b
+  ⇒ R.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Functor m
+  ⇒ Record r
+  → (VariantF r2 a → m (VariantF r3 b))
+  → VariantF r1 a
+  → m (VariantF r3 b)
+travMatch r k v =
+  case coerceV v of
+    VariantFRep v' | unsafeHas v'.type r →
+      let
+        tags = variantTags (RLProxy ∷ RLProxy rlo)
+        maps = variantFMaps (RLProxy ∷ RLProxy rlo)
+        map = lookup "map" v'.type tags maps
+      in unsafeGet v'.type r v'.value <#> \value ->
+          coerceV' (VariantFRep { type: v'.type, map, value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ f. VariantF r1 a → VariantFRep f a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ g. VariantFRep g b → VariantF r3 b
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ VariantF r1 a → VariantF r2 a
+  coerceR = unsafeCoerce
+
+expandTravMatch
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
+  . R.RowToList r rl
+  ⇒ VariantFTravCases m rl ri ro a b
+  ⇒ R.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Applicative m
+  ⇒ TF.Traversable (VariantF r2)
+  ⇒ Record r
+  → (a → m b)
+  → VariantF r1 a
+  → m (VariantF r3 b)
+expandTravMatch r k = travMatch r (TF.traverse k >>> map unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
 
 -- | Combinator for exhaustive pattern matching.

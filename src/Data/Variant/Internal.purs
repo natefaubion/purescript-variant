@@ -9,6 +9,8 @@ module Data.Variant.Internal
   , class VariantFMatchCases
   , class VariantMapCases
   , class VariantFMapCases
+  , class VariantTravCases
+  , class VariantFTravCases
   , lookup
   , lookupTag
   , lookupEq
@@ -101,6 +103,36 @@ instance variantFMapCons
 
 instance variantFMapNil
   ∷ VariantFMapCases R.Nil () () a b
+
+class VariantTravCases (m ∷ Type → Type) (rl ∷ R.RowList)
+  (ri ∷ # Type) (ro ∷ # Type)
+  | rl → ri ro
+
+instance variantTravCons
+  ∷ ( R.Cons sym a ri' ri
+    , R.Cons sym b ro' ro
+    , VariantTravCases m rl ri' ro'
+    , TypeEquals k (a → m b)
+    )
+  ⇒ VariantTravCases m (R.Cons sym k rl) ri ro
+
+instance variantTravNil
+  ∷ VariantTravCases m R.Nil () ()
+
+class VariantFTravCases (m ∷ Type → Type) (rl ∷ R.RowList)
+  (ri ∷ # Type) (ro ∷ # Type) (a ∷ Type) (b ∷ Type)
+  | rl → ri ro
+
+instance variantFTravCons
+  ∷ ( R.Cons sym (FProxy f) ri' ri
+    , R.Cons sym (FProxy g) ro' ro
+    , VariantFTravCases m rl ri' ro' a b
+    , TypeEquals k (f a → m (g b))
+    )
+  ⇒ VariantFTravCases m (R.Cons sym k rl) ri ro a b
+
+instance variantFTravNil
+  ∷ VariantFTravCases m R.Nil () () a b
 
 foreign import data VariantCase ∷ Type
 
