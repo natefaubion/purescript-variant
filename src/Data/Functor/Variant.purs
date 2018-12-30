@@ -9,6 +9,8 @@ module Data.Functor.Variant
   , default
   , overMatch
   , expandOverMatch
+  , travMatch
+  , expandTravMatch
   , expand
   , contract
   , UnvariantF(..)

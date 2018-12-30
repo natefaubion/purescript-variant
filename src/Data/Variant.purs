@@ -9,6 +9,8 @@ module Data.Variant
   , default
   , overMatch
   , expandOverMatch
+  , travMatch
+  , expandTravMatch
   , expand
   , contract
   , Unvariant(..)
@@ -234,7 +236,7 @@ travMatch r k v =
   coerceR ∷ Variant r1 → Variant r2
   coerceR = unsafeCoerce
 
-travOverMatch
+expandTravMatch
   ∷ ∀ r rl ri ro r1 r2 r3 r4 m
   . R.RowToList r rl
   ⇒ VariantTravCases m rl ri ro
@@ -245,7 +247,7 @@ travOverMatch
   ⇒ Record r
   → Variant r1
   → m (Variant r3)
-travOverMatch r = travMatch r (pure <<< unsafeExpand) where
+expandTravMatch r = travMatch r (pure <<< unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
 -- | Combinator for exhaustive pattern matching.
