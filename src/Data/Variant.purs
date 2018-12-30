@@ -7,9 +7,8 @@ module Data.Variant
   , case_
   , match
   , default
-  , mapSome
-  , mapSomeExpand
-  , mapAll
+  , overMatch
+  , expandOverMatch
   , expand
   , contract
   , Unvariant(..)
@@ -60,8 +59,8 @@ inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
 -- | Attempt to read a variant at a given label.
 -- | ```purescript
 -- | case prj (SProxy :: SProxy "foo") intAtFoo of
--- |   Just i  -> i + 1
--- |   Nothing -> 0
+-- |   Just i  → i + 1
+-- |   Nothing → 0
 -- | ```
 prj
   ∷ ∀ sym a r1 r2 f
@@ -103,15 +102,15 @@ on p f g r =
 -- |
 -- | ```purescript
 -- | onMatch
--- |   { foo: \foo -> "Foo: " <> foo
--- |   , bar: \bar -> "Bar: " <> bar
+-- |   { foo: \foo → "Foo: " <> foo
+-- |   , bar: \bar → "Bar: " <> bar
 -- |   }
 -- | ````
 -- |
 -- | Polymorphic functions in records (such as `show` or `id`) can lead
 -- | to inference issues if not all polymorphic variables are specified
 -- | in usage. When in doubt, label methods with specific types, such as
--- | `show :: Int -> String`, or give the whole record an appropriate type.
+-- | `show :: Int → String`, or give the whole record an appropriate type.
 onMatch
   ∷ ∀ rl r r1 r2 r3 b
   . R.RowToList r rl
@@ -133,7 +132,23 @@ onMatch r k v =
   coerceR ∷ Variant r3 → Variant r2
   coerceR = unsafeCoerce
 
-mapSome
+-- | Map over one case of a variant, putting the result back at the same label.
+over
+  ∷ ∀ sym a b r1 r2 r3 r4
+  . IsSymbol sym
+  ⇒ R.Cons sym a r1 r2
+  ⇒ R.Cons sym b r4 r3
+  ⇒ SProxy sym
+  → (a → b)
+  → (Variant r1 → Variant r3)
+  → Variant r2
+  → Variant r3
+over p f = on p (inj p <<< f)
+
+-- | Map over several cases of a variant using a `Record` containing functions
+-- | for each case. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record.
+overMatch
   ∷ ∀ r rl ri ro r1 r2 r3 r4
   . R.RowToList r rl
   ⇒ VariantMapCases rl ri ro
@@ -143,7 +158,7 @@ mapSome
   → (Variant r2 → Variant r3)
   → Variant r1
   → Variant r3
-mapSome r k v =
+overMatch r k v =
   case coerceV v of
     VariantRep v' | unsafeHas v'.type r →
       coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
@@ -159,58 +174,28 @@ mapSome r k v =
   coerceR ∷ Variant r1 → Variant r2
   coerceR = unsafeCoerce
 
-mapSomeExpand
+-- | `expandOverMatch r` is like `expand # overMatch r` but with a more easily
+-- | solved constraint (i.e. it can be solved once the type of `r` is known).
+expandOverMatch
   ∷ ∀ r rl ri ro r1 r2 r3 r4
   . R.RowToList r rl
   ⇒ VariantMapCases rl ri ro
   ⇒ R.Union ri r2 r1
   ⇒ R.Union ro r4 r3
-  ⇒ R.Union ro r2 r3
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
   ⇒ Record r
   → Variant r1
   → Variant r3
-mapSomeExpand r v =
-  case coerceV v of
-    VariantRep v' | unsafeHas v'.type r →
-      coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
-    _ → coerceR v
-
-  where
-  coerceV ∷ ∀ a. Variant r1 → VariantRep a
-  coerceV = unsafeCoerce
-
-  coerceV' ∷ ∀ a. VariantRep a → Variant r3
-  coerceV' = unsafeCoerce
-
-  coerceR ∷ Variant r1 → Variant r3
-  coerceR = unsafeCoerce
-
-mapAll
-  ∷ ∀ r rl ri ro
-  . R.RowToList r rl
-  ⇒ VariantMapCases rl ri ro
-  ⇒ Record r
-  → Variant ri
-  → Variant ro
-mapAll r v =
-  case coerceV v of
-    VariantRep v' →
-      coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
-
-  where
-  coerceV ∷ ∀ a. Variant ri → VariantRep a
-  coerceV = unsafeCoerce
-
-  coerceV' ∷ ∀ a. VariantRep a → Variant ro
-  coerceV' = unsafeCoerce
+expandOverMatch r = overMatch r unsafeExpand where
+  unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
--- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
+-- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) → String
 -- | caseFn = case_
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
--- |  # on (SProxy :: SProxy "baz") (\baz -> "Baz: " <> show baz)
+-- |  # on (SProxy :: SProxy "foo") (\foo → "Foo: " <> show foo)
+-- |  # on (SProxy :: SProxy "bar") (\bar → "Bar: " <> bar)
+-- |  # on (SProxy :: SProxy "baz") (\baz → "Baz: " <> show baz)
 -- | ```
 case_ ∷ ∀ a. Variant () → a
 case_ r = unsafeCrashWith case unsafeCoerce r of
@@ -218,11 +203,11 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 
 -- | Combinator for exhaustive pattern matching using an `onMatch` case record.
 -- | ```purescript
--- | matchFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
+-- | matchFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) → String
 -- | matchFn = match
--- |   { foo: \foo -> "Foo: " <> show foo
--- |   , bar: \bar -> "Bar: " <> bar
--- |   , baz: \baz -> "Baz: " <> show baz
+-- |   { foo: \foo → "Foo: " <> show foo
+-- |   , bar: \bar → "Bar: " <> bar
+-- |   , baz: \baz → "Baz: " <> show baz
 -- |   }
 -- | ```
 match
@@ -237,10 +222,10 @@ match r = case_ # onMatch r
 
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
--- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
+-- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) → String
 -- | caseFn = default "No match"
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
+-- |  # on (SProxy :: SProxy "foo") (\foo → "Foo: " <> show foo)
+-- |  # on (SProxy :: SProxy "bar") (\bar → "Bar: " <> bar)
 -- | ```
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
@@ -310,7 +295,7 @@ unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
   coerce = unsafeCoerce
 
 -- | Reconstructs a Variant given an Unvariant eliminator.
-revariant ∷ ∀ r. Unvariant r -> Variant r
+revariant ∷ ∀ r. Unvariant r → Variant r
 revariant (Unvariant f) = f inj
 
 class VariantEqs (rl ∷ R.RowList) where

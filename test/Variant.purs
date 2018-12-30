@@ -5,7 +5,7 @@ import Prelude
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Symbol (reflectSymbol)
-import Data.Variant (SProxy(..), Unvariant(..), Variant, case_, contract, default, expand, inj, mapAll, mapSome, mapSomeExpand, match, on, onMatch, prj, revariant, unvariant)
+import Data.Variant (SProxy(..), Unvariant(..), Variant, case_, contract, default, expand, inj, overMatch, expandOverMatch, match, on, onMatch, prj, revariant, unvariant)
 import Effect (Effect)
 import Record.Builder (build, modify, Builder)
 import Test.Assert (assert')
@@ -97,25 +97,18 @@ test = do
   assert' "match: baz" $ match' baz == "baz: true"
 
   let
-    mapSome' ∷ Variant TestVariants → Variant TestVariants'
-    mapSome' = mapSome
+    overMatch' ∷ Variant TestVariants → Variant TestVariants'
+    overMatch' = overMatch
       { foo: \a → show a
       , baz: \a → show a
       } expand
 
-    mapSomeExpand' ∷ forall r.
+    expandOverMatch' ∷ forall r.
       Variant ( foo ∷ Int, baz ∷ Boolean | r ) →
       Variant ( foo ∷ String, baz ∷ String | r )
-    mapSomeExpand' = mapSomeExpand
+    expandOverMatch' = expandOverMatch
       { foo: \a → show a
       , baz: \a → show a
-      }
-
-    mapAll' ∷ Variant TestVariants → Variant TestVariants'
-    mapAll' = mapAll
-      { foo: identity show
-      , bar: identity identity
-      , baz: identity show
       }
 
     onMatch' ∷ Variant TestVariants' → String
@@ -128,17 +121,13 @@ test = do
         { baz: \a → "baz: " <> a
         }
 
-  assert' "onMatch mapSome: foo" $ onMatch' (mapSome' foo) == "foo: 42"
-  assert' "onMatch mapSome: bar" $ onMatch' (mapSome' bar) == "bar: bar"
-  assert' "onMatch mapSome: baz" $ onMatch' (mapSome' baz) == "baz: true"
+  assert' "onMatch overMatch: foo" $ onMatch' (overMatch' foo) == "foo: 42"
+  assert' "onMatch overMatch: bar" $ onMatch' (overMatch' bar) == "bar: bar"
+  assert' "onMatch overMatch: baz" $ onMatch' (overMatch' baz) == "baz: true"
 
-  assert' "onMatch mapSomeExpand: foo" $ onMatch' (mapSomeExpand' foo) == "foo: 42"
-  assert' "onMatch mapSomeExpand: bar" $ onMatch' (mapSomeExpand' bar) == "bar: bar"
-  assert' "onMatch mapSomeExpand: baz" $ onMatch' (mapSomeExpand' baz) == "baz: true"
-
-  assert' "onMatch mapAll: foo" $ onMatch' (mapAll' foo) == "foo: 42"
-  assert' "onMatch mapAll: bar" $ onMatch' (mapAll' bar) == "bar: bar"
-  assert' "onMatch mapAll: baz" $ onMatch' (mapAll' baz) == "baz: true"
+  assert' "onMatch expandOverMatch: foo" $ onMatch' (expandOverMatch' foo) == "foo: 42"
+  assert' "onMatch expandOverMatch: bar" $ onMatch' (expandOverMatch' bar) == "bar: bar"
+  assert' "onMatch expandOverMatch: baz" $ onMatch' (expandOverMatch' baz) == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar

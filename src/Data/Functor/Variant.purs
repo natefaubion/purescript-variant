@@ -7,9 +7,8 @@ module Data.Functor.Variant
   , case_
   , match
   , default
-  , mapSome
-  , mapSomeExpand
-  , mapAll
+  , overMatch
+  , expandOverMatch
   , expand
   , contract
   , UnvariantF(..)
@@ -217,7 +216,20 @@ onMatch r k v =
   coerceR ∷ VariantF r3 a → VariantF r2 a
   coerceR = unsafeCoerce
 
-mapSome
+over
+  ∷ ∀ sym f g a b r1 r2 r3 r4
+  . R.Cons sym (FProxy f) r1 r2
+  ⇒ R.Cons sym (FProxy g) r4 r3
+  ⇒ IsSymbol sym
+  ⇒ Functor g
+  ⇒ SProxy sym
+  → (f a → g b)
+  → (VariantF r1 a → VariantF r3 b)
+  → VariantF r2 a
+  → VariantF r3 b
+over p f = on p (inj p <<< f)
+
+overMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . R.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
@@ -230,7 +242,7 @@ mapSome
   → (VariantF r2 a → VariantF r3 b)
   → VariantF r1 a
   → VariantF r3 b
-mapSome r k v =
+overMatch r k v =
   case coerceV v of
     VariantFRep v' | unsafeHas v'.type r →
       let
@@ -250,7 +262,9 @@ mapSome r k v =
   coerceR ∷ VariantF r1 a → VariantF r2 a
   coerceR = unsafeCoerce
 
-mapSomeExpand
+-- | `expandOverMatch r` is like `expand # overMatch r` but with a more easily
+-- | solved constraint (i.e. it can be solved once the type of `r` is known).
+expandOverMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . R.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
@@ -264,54 +278,8 @@ mapSomeExpand
   → (a → b)
   → VariantF r1 a
   → VariantF r3 b
-mapSomeExpand r k v =
-  case coerceV v of
-    VariantFRep v' | unsafeHas v'.type r →
-      let
-        tags = variantTags (RLProxy ∷ RLProxy rlo)
-        maps = variantFMaps (RLProxy ∷ RLProxy rlo)
-        map = lookup "map" v'.type tags maps
-      in coerceV' (VariantFRep { type: v'.type, map, value: unsafeGet v'.type r v'.value })
-    _ → expandR2 (map k (coerceR v))
-
-  where
-  coerceV ∷ ∀ f. VariantF r1 a → VariantFRep f a
-  coerceV = unsafeCoerce
-
-  coerceV' ∷ ∀ g. VariantFRep g b → VariantF r3 b
-  coerceV' = unsafeCoerce
-
-  coerceR ∷ VariantF r1 a → VariantF r2 a
-  coerceR = unsafeCoerce
-
-  expandR2 ∷ VariantF r2 b → VariantF r3 b
-  expandR2 = unsafeCoerce
-
-mapAll
-  ∷ ∀ r rl rlo ri ro a b
-  . R.RowToList r rl
-  ⇒ VariantFMapCases rl ri ro a b
-  ⇒ R.RowToList ro rlo
-  ⇒ VariantTags rlo
-  ⇒ VariantFMaps rlo
-  ⇒ Record r
-  → VariantF ri a
-  → VariantF ro b
-mapAll r v =
-  case coerceV v of
-    VariantFRep v' →
-      let
-        tags = variantTags (RLProxy ∷ RLProxy rlo)
-        maps = variantFMaps (RLProxy ∷ RLProxy rlo)
-        map = lookup "map" v'.type tags maps
-      in coerceV' (VariantFRep { type: v'.type, map, value: unsafeGet v'.type r v'.value })
-
-  where
-  coerceV ∷ ∀ f. VariantF ri a → VariantFRep f a
-  coerceV = unsafeCoerce
-
-  coerceV' ∷ ∀ f. VariantFRep f b → VariantF ro b
-  coerceV' = unsafeCoerce
+expandOverMatch r k = overMatch r (map k >>> unsafeExpand) where
+  unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript

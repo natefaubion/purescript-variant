@@ -3,7 +3,7 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, expand, inj, mapAll, mapSome, mapSomeExpand, match, on, onMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, expand, inj, overMatch, expandOverMatch, match, on, onMatch, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -111,24 +111,15 @@ test = do
     map'' ∷ VariantF TestVariants Int → String
     map'' = map (_ + 2) >>> map'
 
-    mapSome' ∷ VariantF TestVariants Int → VariantF TestVariants Int
-    mapSome' = mapSome
+    overMatch' ∷ VariantF TestVariants Int → VariantF TestVariants Int
+    overMatch' = overMatch
       { baz: \(_ ∷ Either String Int) → Right 20
       } expand
 
-    mapAll' ∷ VariantF TestVariants Int → VariantF TestVariants Int
-    mapAll' = mapAll
-      { baz: \(_ ∷ Either String Int) → Right 20
-      , bar: \a → a
-      , foo: case _ of
-          Nothing → Just 0
-          Just f → Just f
-      }
-
-    mapSomeExpand' ∷ forall r.
+    expandOverMatch' ∷ forall r.
       VariantF (baz ∷ FProxy (Either String) | r) Int →
       VariantF (baz ∷ FProxy (Either String) | r) Int
-    mapSomeExpand' = mapSomeExpand
+    expandOverMatch' = expandOverMatch
       { baz: \(_ ∷ Either String Int) → Right 20
       } identity
 
@@ -136,17 +127,13 @@ test = do
   assert' "map: bar" $ map'' bar == "bar: (Tuple \"bar\" 44)"
   assert' "map: baz" $ map'' baz == "baz: (Left \"baz\")"
 
-  assert' "mapSome: foo" $ map'' (mapSome' foo) == "foo: (Just 44)"
-  assert' "mapSome: bar" $ map'' (mapSome' bar) == "bar: (Tuple \"bar\" 44)"
-  assert' "mapSome: baz" $ map'' (mapSome' baz) == "baz: (Right 22)"
+  assert' "overMatch: foo" $ map'' (overMatch' foo) == "foo: (Just 44)"
+  assert' "overMatch: bar" $ map'' (overMatch' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "overMatch: baz" $ map'' (overMatch' baz) == "baz: (Right 22)"
 
-  assert' "mapSomeExpand: foo" $ map'' (mapSomeExpand' foo) == "foo: (Just 44)"
-  assert' "mapSomeExpand: bar" $ map'' (mapSomeExpand' bar) == "bar: (Tuple \"bar\" 44)"
-  assert' "mapSomeExpand: baz" $ map'' (mapSomeExpand' baz) == "baz: (Right 22)"
-
-  assert' "mapAll: foo" $ map'' (mapAll' foo) == "foo: (Just 44)"
-  assert' "mapAll: bar" $ map'' (mapAll' bar) == "bar: (Tuple \"bar\" 44)"
-  assert' "mapAll: baz" $ map'' (mapAll' baz) == "baz: (Right 22)"
+  assert' "expandOverMatch: foo" $ map'' (expandOverMatch' foo) == "foo: (Just 44)"
+  assert' "expandOverMatch: bar" $ map'' (expandOverMatch' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "expandOverMatch: baz" $ map'' (expandOverMatch' baz) == "baz: (Right 22)"
 
   assert' "contract: pass"
     $ isJust
