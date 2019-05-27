@@ -28,7 +28,7 @@
     "purescript-unsafe-coerce": "^4.0.0",
     "purescript-partial": "^2.0.0",
     "purescript-maybe": "^4.0.0",
-    "purescript-typelevel-prelude": "^4.0.0",
+    "purescript-typelevel-prelude": "^5.0.0",
     "purescript-lists": "^5.0.0",
     "purescript-record": "^2.0.0",
     "purescript-enums": "^4.0.0"
