@@ -32,7 +32,8 @@ import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
 import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantTags, BoundedDict, BoundedEnumDict, RLProxy(..), RProxy(..), VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
-import Type.Row as R
+import Prim.Row as R
+import Prim.RowList as RL
 import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data Variant ∷ # Type → Type
@@ -111,7 +112,7 @@ on p f g r =
 -- | `show :: Int -> String`, or give the whole record an appropriate type.
 onMatch
   ∷ ∀ rl r r1 r2 r3 b
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantMatchCases rl r1 b
   ⇒ R.Union r1 r2 r3
   ⇒ Record r
@@ -153,7 +154,7 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 match
   ∷ ∀ rl r r1 r2 b
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantMatchCases rl r1 b
   ⇒ R.Union r1 () r2
   ⇒ Record r
@@ -239,20 +240,20 @@ unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
 revariant ∷ ∀ r. Unvariant r -> Variant r
 revariant (Unvariant f) = f inj
 
-class VariantEqs (rl ∷ R.RowList) where
+class VariantEqs (rl ∷ RL.RowList) where
   variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
 
-instance eqVariantNil ∷ VariantEqs R.Nil where
+instance eqVariantNil ∷ VariantEqs RL.Nil where
   variantEqs _ = L.Nil
 
-instance eqVariantCons ∷ (VariantEqs rs, Eq a) ⇒ VariantEqs (R.Cons sym a rs) where
+instance eqVariantCons ∷ (VariantEqs rs, Eq a) ⇒ VariantEqs (RL.Cons sym a rs) where
   variantEqs _ =
     L.Cons (coerceEq eq) (variantEqs (RLProxy ∷ RLProxy rs))
     where
     coerceEq ∷ (a → a → Boolean) → VariantCase → VariantCase → Boolean
     coerceEq = unsafeCoerce
 
-instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq (Variant r) where
+instance eqVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq (Variant r) where
   eq v1 v2 =
     let
       c1 = unsafeCoerce v1 ∷ VariantRep VariantCase
@@ -262,13 +263,13 @@ instance eqVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq 
     in
       lookupEq tags eqs c1 c2
 
-class VariantBounded (rl ∷ R.RowList) where
+class VariantBounded (rl ∷ RL.RowList) where
   variantBounded ∷ RLProxy rl → L.List (BoundedDict VariantCase)
 
-instance boundedVariantNil ∷ VariantBounded R.Nil where
+instance boundedVariantNil ∷ VariantBounded RL.Nil where
   variantBounded _ = L.Nil
 
-instance boundedVariantCons ∷ (VariantBounded rs, Bounded a) ⇒ VariantBounded (R.Cons sym a rs) where
+instance boundedVariantCons ∷ (VariantBounded rs, Bounded a) ⇒ VariantBounded (RL.Cons sym a rs) where
   variantBounded _ = L.Cons dict (variantBounded (RLProxy ∷ RLProxy rs))
     where
     dict ∷ BoundedDict VariantCase
@@ -280,7 +281,7 @@ instance boundedVariantCons ∷ (VariantBounded rs, Bounded a) ⇒ VariantBounde
     coerce ∷ a → VariantCase
     coerce = unsafeCoerce
 
-instance boundedVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBounded rl) ⇒ Bounded (Variant r) where
+instance boundedVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBounded rl) ⇒ Bounded (Variant r) where
   top =
     let
       tags = variantTags (RLProxy ∷ RLProxy rl)
@@ -300,10 +301,10 @@ instance boundedVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, Va
 class VariantBounded rl ⇐ VariantBoundedEnums rl where
   variantBoundedEnums ∷ RLProxy rl → L.List (BoundedEnumDict VariantCase)
 
-instance enumVariantNil ∷ VariantBoundedEnums R.Nil where
+instance enumVariantNil ∷ VariantBoundedEnums RL.Nil where
   variantBoundedEnums _ = L.Nil
 
-instance enumVariantCons ∷ (VariantBoundedEnums rs, BoundedEnum a) ⇒ VariantBoundedEnums (R.Cons sym a rs) where
+instance enumVariantCons ∷ (VariantBoundedEnums rs, BoundedEnum a) ⇒ VariantBoundedEnums (RL.Cons sym a rs) where
   variantBoundedEnums _ = L.Cons dict (variantBoundedEnums (RLProxy ∷ RLProxy rs))
     where
     dict ∷ BoundedEnumDict VariantCase
@@ -330,7 +331,7 @@ instance enumVariantCons ∷ (VariantBoundedEnums rs, BoundedEnum a) ⇒ Variant
     coerceCardinality ∷ Cardinality a → Int
     coerceCardinality = unsafeCoerce
 
-instance enumVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBoundedEnums rl) ⇒ Enum (Variant r) where
+instance enumVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBoundedEnums rl) ⇒ Enum (Variant r) where
   pred a =
     let
       rep = unsafeCoerce a ∷ VariantRep VariantCase
@@ -351,7 +352,7 @@ instance enumVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, Varia
     in
       coerce $ lookupSucc rep tags bounds dicts
 
-instance boundedEnumVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBoundedEnums rl) ⇒ BoundedEnum (Variant r) where
+instance boundedEnumVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl, VariantBoundedEnums rl) ⇒ BoundedEnum (Variant r) where
   cardinality =
     Cardinality $ lookupCardinality $ variantBoundedEnums (RLProxy ∷ RLProxy rl)
 
@@ -371,20 +372,20 @@ instance boundedEnumVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl
     in
       coerceV $ lookupToEnum n tags dicts
 
-class VariantOrds (rl ∷ R.RowList) where
+class VariantOrds (rl ∷ RL.RowList) where
   variantOrds ∷ RLProxy rl → L.List (VariantCase → VariantCase → Ordering)
 
-instance ordVariantNil ∷ VariantOrds R.Nil where
+instance ordVariantNil ∷ VariantOrds RL.Nil where
   variantOrds _ = L.Nil
 
-instance ordVariantCons ∷ (VariantOrds rs, Ord a) ⇒ VariantOrds (R.Cons sym a rs) where
+instance ordVariantCons ∷ (VariantOrds rs, Ord a) ⇒ VariantOrds (RL.Cons sym a rs) where
   variantOrds _ =
     L.Cons (coerceOrd compare) (variantOrds (RLProxy ∷ RLProxy rs))
     where
     coerceOrd ∷ (a → a → Ordering) → VariantCase → VariantCase → Ordering
     coerceOrd = unsafeCoerce
 
-instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl) ⇒ Ord (Variant r) where
+instance ordVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, VariantOrds rl) ⇒ Ord (Variant r) where
   compare v1 v2 =
     let
       c1 = unsafeCoerce v1 ∷ VariantRep VariantCase
@@ -394,20 +395,20 @@ instance ordVariant ∷ (R.RowToList r rl, VariantTags rl, VariantEqs rl, Varian
     in
       lookupOrd tags ords c1 c2
 
-class VariantShows (rl ∷ R.RowList) where
+class VariantShows (rl ∷ RL.RowList) where
   variantShows ∷ RLProxy rl → L.List (VariantCase → String)
 
-instance showVariantNil ∷ VariantShows R.Nil where
+instance showVariantNil ∷ VariantShows RL.Nil where
   variantShows _ = L.Nil
 
-instance showVariantCons ∷ (VariantShows rs, Show a) ⇒ VariantShows (R.Cons sym a rs) where
+instance showVariantCons ∷ (VariantShows rs, Show a) ⇒ VariantShows (RL.Cons sym a rs) where
   variantShows _ =
     L.Cons (coerceShow show) (variantShows (RLProxy ∷ RLProxy rs))
     where
     coerceShow ∷ (a → String) → VariantCase → String
     coerceShow = unsafeCoerce
 
-instance showVariant ∷ (R.RowToList r rl, VariantTags rl, VariantShows rl) ⇒ Show (Variant r) where
+instance showVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantShows rl) ⇒ Show (Variant r) where
   show v1 =
     let
       VariantRep v = unsafeCoerce v1 ∷ VariantRep VariantCase

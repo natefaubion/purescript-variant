@@ -40,7 +40,7 @@ completeness = revariantF <<< unvariantF
 test ∷ Effect Unit
 test = do
   assert' "prj: Foo" $ prj _foo foo == Just (Just 42)
-  assert' "prj: !Foo" $ prj _foo bar == Nothing ∷ Maybe (Maybe Int)
+  assert' "prj: !Foo" $ prj _foo bar == (Nothing ∷ Maybe (Maybe Int))
 
   let
     case1 ∷ VariantF TestVariants Int → String
@@ -112,10 +112,10 @@ test = do
 
   assert' "contract: pass"
     $ isJust
-    $ contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ FProxy Maybe) Int)
+    $ (contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ FProxy Maybe) Int))
 
   assert' "contract: fail"
     $ L.null
-    $ contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ FProxy Maybe) Int)
+    $ (contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ FProxy Maybe) Int))
 
   assert' "show" $ show (foo :: VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""
