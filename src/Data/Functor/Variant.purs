@@ -38,10 +38,10 @@ import Data.Traversable as TF
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases, class VariantFMapCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantFMapCases, class VariantFMatchCases, class VariantFTravCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantCase, VariantFCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
-import Prim.Row as Row
+import Prim.Row as R
+import Prim.RowList as RL
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
-import Type.Row as R
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Mapper f = Mapper (forall a b. (a → b) → f a → f b)
@@ -71,12 +71,12 @@ instance functorVariantF ∷ Functor (VariantF r) where
     coerceV ∷ ∀ f a. VariantFRep f a → VariantF r a
     coerceV = unsafeCoerce
 
-class FoldableVFRL (rl :: R.RowList) (row :: # Type) | rl -> row where
+class FoldableVFRL (rl :: RL.RowList) (row :: # Type) | rl -> row where
   foldrVFRL :: forall a b. RLProxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
   foldlVFRL :: forall a b. RLProxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
   foldMapVFRL :: forall a m. Monoid m => RLProxy rl -> (a -> m) -> VariantF row a -> m
 
-instance foldableNil :: FoldableVFRL R.Nil () where
+instance foldableNil :: FoldableVFRL RL.Nil () where
   foldrVFRL _ _ _ = case_
   foldlVFRL _ _ _ = case_
   foldMapVFRL _ _ = case_
@@ -85,8 +85,8 @@ instance foldableCons ::
   ( IsSymbol k
   , TF.Foldable f
   , FoldableVFRL rl r
-  , Row.Cons k (FProxy f) r r'
-  ) => FoldableVFRL (R.Cons k (FProxy f) rl) r' where
+  , R.Cons k (FProxy f) r r'
+  ) => FoldableVFRL (RL.Cons k (FProxy f) rl) r' where
   foldrVFRL _ f b = on k (TF.foldr f b) (foldrVFRL (RLProxy :: RLProxy rl) f b)
     where k = SProxy :: SProxy k
   foldlVFRL _ f b = on k (TF.foldl f b) (foldlVFRL (RLProxy :: RLProxy rl) f b)
@@ -94,32 +94,32 @@ instance foldableCons ::
   foldMapVFRL _ f = on k (TF.foldMap f) (foldMapVFRL (RLProxy :: RLProxy rl) f)
     where k = SProxy :: SProxy k
 
-class FoldableVFRL rl row <= TraversableVFRL (rl :: R.RowList) (row :: # Type) | rl -> row where
+class FoldableVFRL rl row <= TraversableVFRL (rl :: RL.RowList) (row :: # Type) | rl -> row where
   traverseVFRL :: forall f a b. Applicative f => RLProxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
 
-instance traversableNil :: TraversableVFRL R.Nil () where
+instance traversableNil :: TraversableVFRL RL.Nil () where
   traverseVFRL _ f = case_
 
 instance traversableCons ::
   ( IsSymbol k
   , TF.Traversable f
   , TraversableVFRL rl r
-  , Row.Cons k (FProxy f) r r'
+  , R.Cons k (FProxy f) r r'
   , R.Union r rx r'
-  ) => TraversableVFRL (R.Cons k (FProxy f) rl) r' where
+  ) => TraversableVFRL (RL.Cons k (FProxy f) rl) r' where
   traverseVFRL _ f = on k (TF.traverse f >>> map (inj k))
     (traverseVFRL (RLProxy :: RLProxy rl) f >>> map expand)
     where k = SProxy :: SProxy k
 
 instance foldableVariantF ::
-  (R.RowToList row rl, FoldableVFRL rl row) =>
+  (RL.RowToList row rl, FoldableVFRL rl row) =>
   TF.Foldable (VariantF row) where
     foldr = foldrVFRL (RLProxy :: RLProxy rl)
     foldl = foldlVFRL (RLProxy :: RLProxy rl)
     foldMap = foldMapVFRL (RLProxy :: RLProxy rl)
 
 instance traversableVariantF ::
-  (R.RowToList row rl, TraversableVFRL rl row) =>
+  (RL.RowToList row rl, TraversableVFRL rl row) =>
   TF.Traversable (VariantF row) where
     traverse = traverseVFRL (RLProxy :: RLProxy rl)
     sequence = TF.sequenceDefault
@@ -199,7 +199,7 @@ on p f g r =
 -- | `show :: Int -> String`, or give the whole record an appropriate type.
 onMatch
   ∷ ∀ rl r r1 r2 r3 a b
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
   ⇒ R.Union r1 r2 r3
   ⇒ Record r
@@ -233,9 +233,9 @@ over p f = on p (inj p <<< f)
 
 overMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
-  ⇒ R.RowToList ro rlo
+  ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
@@ -269,9 +269,9 @@ overMatch r k v =
 -- | `r` is known).
 expandOverMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
-  ⇒ R.RowToList ro rlo
+  ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
@@ -300,9 +300,9 @@ trav p f = on p (map (inj p) <<< f)
 
 travMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantFTravCases m rl ri ro a b
-  ⇒ R.RowToList ro rlo
+  ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
@@ -335,9 +335,9 @@ travMatch r k v =
 
 expandTravMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantFTravCases m rl ri ro a b
-  ⇒ R.RowToList ro rlo
+  ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
@@ -375,7 +375,7 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 -- | ```
 match
   ∷ ∀ rl r r1 r2 a b
-  . R.RowToList r rl
+  . RL.RowToList r rl
   ⇒ VariantFMatchCases rl r1 a b
   ⇒ R.Union r1 () r2
   ⇒ Record r
@@ -468,20 +468,20 @@ unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
 revariantF ∷ ∀ r a. UnvariantF r a -> VariantF r a
 revariantF (UnvariantF f) = f inj
 
-class VariantFShows (rl ∷ R.RowList) x where
+class VariantFShows (rl ∷ RL.RowList) x where
   variantFShows ∷ RLProxy rl → Proxy x → L.List (VariantCase → String)
 
-instance showVariantFNil ∷ VariantFShows R.Nil x where
+instance showVariantFNil ∷ VariantFShows RL.Nil x where
   variantFShows _ _ = L.Nil
 
-instance showVariantFCons ∷ (VariantFShows rs x, TypeEquals a (FProxy f), Show (f x), Show x) ⇒ VariantFShows (R.Cons sym a rs) x where
+instance showVariantFCons ∷ (VariantFShows rs x, TypeEquals a (FProxy f), Show (f x), Show x) ⇒ VariantFShows (RL.Cons sym a rs) x where
   variantFShows _ p =
     L.Cons (coerceShow show) (variantFShows (RLProxy ∷ RLProxy rs) p)
     where
     coerceShow ∷ (f x → String) → VariantCase → String
     coerceShow = unsafeCoerce
 
-instance showVariantF ∷ (R.RowToList r rl, VariantTags rl, VariantFShows rl a, Show a) ⇒ Show (VariantF r a) where
+instance showVariantF ∷ (RL.RowToList r rl, VariantTags rl, VariantFShows rl a, Show a) ⇒ Show (VariantF r a) where
   show v1 =
     let
       VariantFRep v = unsafeCoerce v1 ∷ VariantFRep VariantFCase a
@@ -491,13 +491,13 @@ instance showVariantF ∷ (R.RowToList r rl, VariantTags rl, VariantFShows rl a,
     in
       "(inj @" <> show v.type <> " " <> body <> ")"
 
-class VariantFMaps (rl ∷ R.RowList) where
+class VariantFMaps (rl ∷ RL.RowList) where
   variantFMaps ∷ RLProxy rl → L.List (Mapper VariantFCase)
 
-instance mapVariantFNil ∷ VariantFMaps R.Nil where
+instance mapVariantFNil ∷ VariantFMaps RL.Nil where
   variantFMaps _ = L.Nil
 
-instance mapVariantFCons ∷ (VariantFMaps rs, TypeEquals a (FProxy f), Functor f) ⇒ VariantFMaps (R.Cons sym a rs) where
+instance mapVariantFCons ∷ (VariantFMaps rs, TypeEquals a (FProxy f), Functor f) ⇒ VariantFMaps (RL.Cons sym a rs) where
   variantFMaps _ =
     L.Cons (coerceMap (Mapper map)) (variantFMaps (RLProxy ∷ RLProxy rs))
     where

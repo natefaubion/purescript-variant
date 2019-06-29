@@ -61,7 +61,7 @@ recAfter = build modifyRec recBefore
 test ∷ Effect Unit
 test = do
   assert' "prj: Foo" $ prj _foo foo == Just 42
-  assert' "prj: !Foo" $ prj _foo bar == Nothing ∷ Maybe Int
+  assert' "prj: !Foo" $ prj _foo bar == (Nothing ∷ Maybe Int)
 
   let
     case1 ∷ Variant TestVariants → String
@@ -143,11 +143,11 @@ test = do
 
   assert' "contract: pass"
     $ isJust
-    $ contract (foo ∷ Variant TestVariants) ∷ Maybe (Variant (foo ∷ Int))
+    $ (contract (foo ∷ Variant TestVariants) ∷ Maybe (Variant (foo ∷ Int)))
 
   assert' "contract: fail"
     $ L.null
-    $ contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int))
+    $ (contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int)))
 
   assert' "show" $ show (foo ∷ Variant TestVariants) ==  """(inj @"foo" 42)"""
 
