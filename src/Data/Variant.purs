@@ -1,6 +1,7 @@
 module Data.Variant
   ( Variant
   , inj
+  , class VariantInjTagged, injTagged
   , prj
   , on
   , onMatch
@@ -34,6 +35,7 @@ import Data.Variant.Internal (class Contractable, class VariantMatchCases, class
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
+import Record (get)
 import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data Variant ∷ # Type → Type
@@ -54,6 +56,23 @@ inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
   where
   coerceV ∷ VariantRep a → Variant r2
   coerceV = unsafeCoerce
+
+class VariantInjTagged a b | a → b where
+  -- | Injects value from a single field of record into variant
+  -- |
+  -- | ```purescript
+  -- | intAtFoo :: forall r. Variant (foo :: Int | r)
+  -- | intAtFoo = injTagged { foo: 42 }
+  -- | ```
+  injTagged ∷ Record a → Variant b
+
+instance variantInjTagged ∷
+  ( RL.RowToList r1 (RL.Cons sym a RL.Nil)
+  , R.Cons sym a () r1
+  , R.Cons sym a rx r2
+  , IsSymbol sym
+  ) ⇒ VariantInjTagged r1 r2 where
+  injTagged = inj (SProxy ∷ SProxy sym) <<< get (SProxy ∷ SProxy sym)
 
 -- | Attempt to read a variant at a given label.
 -- | ```purescript
