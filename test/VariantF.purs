@@ -3,7 +3,7 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF, injTagged)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -26,7 +26,7 @@ _baz ∷ SProxy "baz"
 _baz = SProxy
 
 foo ∷ ∀ r. VariantF (foo ∷ FProxy Maybe | r) Int
-foo = inj _foo (Just 42)
+foo = injTagged { foo: Just 42 }
 
 bar ∷ ∀ r. VariantF (bar ∷ FProxy (Tuple String) | r) Int
 bar = inj _bar (Tuple "bar" 42)

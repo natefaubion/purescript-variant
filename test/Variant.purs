@@ -5,7 +5,7 @@ import Prelude
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Symbol (reflectSymbol)
-import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract, Unvariant(..), unvariant, revariant)
+import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, SProxy(..), match, contract, Unvariant(..), unvariant, revariant, injTagged)
 import Record.Builder (build, modify, Builder())
 import Test.Assert (assert')
 import Effect (Effect)
@@ -26,7 +26,7 @@ _baz ∷ SProxy "baz"
 _baz = SProxy
 
 foo ∷ ∀ r. Variant (foo ∷ Int | r)
-foo = inj _foo 42
+foo = injTagged { foo: 42 }
 
 bar ∷ ∀ r. Variant (bar ∷ String | r)
 bar = inj _bar "bar"
