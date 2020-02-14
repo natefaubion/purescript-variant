@@ -36,7 +36,7 @@ import Prim.Row as R
 import Prim.RowList as RL
 import Unsafe.Coerce (unsafeCoerce)
 
-foreign import data Variant ∷ # Type → Type
+foreign import data Variant ∷ Row Type → Type
 
 -- | Inject into the variant at a given label.
 -- | ```purescript
@@ -240,7 +240,7 @@ unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
 revariant ∷ ∀ r. Unvariant r -> Variant r
 revariant (Unvariant f) = f inj
 
-class VariantEqs (rl ∷ RL.RowList) where
+class VariantEqs (rl ∷ RL.RowList Type) where
   variantEqs ∷ RLProxy rl → L.List (VariantCase → VariantCase → Boolean)
 
 instance eqVariantNil ∷ VariantEqs RL.Nil where
@@ -263,7 +263,7 @@ instance eqVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq
     in
       lookupEq tags eqs c1 c2
 
-class VariantBounded (rl ∷ RL.RowList) where
+class VariantBounded (rl ∷ RL.RowList Type) where
   variantBounded ∷ RLProxy rl → L.List (BoundedDict VariantCase)
 
 instance boundedVariantNil ∷ VariantBounded RL.Nil where
@@ -372,7 +372,7 @@ instance boundedEnumVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs r
     in
       coerceV $ lookupToEnum n tags dicts
 
-class VariantOrds (rl ∷ RL.RowList) where
+class VariantOrds (rl ∷ RL.RowList Type) where
   variantOrds ∷ RLProxy rl → L.List (VariantCase → VariantCase → Ordering)
 
 instance ordVariantNil ∷ VariantOrds RL.Nil where
@@ -395,7 +395,7 @@ instance ordVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, Varia
     in
       lookupOrd tags ords c1 c2
 
-class VariantShows (rl ∷ RL.RowList) where
+class VariantShows (rl ∷ RL.RowList Type) where
   variantShows ∷ RLProxy rl → L.List (VariantCase → String)
 
 instance showVariantNil ∷ VariantShows RL.Nil where

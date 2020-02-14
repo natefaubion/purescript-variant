@@ -49,7 +49,7 @@ newtype VariantRep a = VariantRep
   , value ∷ a
   }
 
-class VariantMatchCases (rl ∷ RL.RowList) (vo ∷ # Type) b | rl → vo b
+class VariantMatchCases (rl ∷ RL.RowList Type) (vo ∷ Row Type) b | rl → vo b
 
 instance variantMatchCons
   ∷ ( VariantMatchCases rl vo' b
@@ -61,7 +61,7 @@ instance variantMatchCons
 instance variantMatchNil
   ∷ VariantMatchCases RL.Nil () b
 
-class VariantFMatchCases (rl ∷ RL.RowList) (vo ∷ # Type) a b | rl → vo a b
+class VariantFMatchCases (rl ∷ RL.RowList Type) (vo ∷ Row Type) a b | rl → vo a b
 
 instance variantFMatchCons
   ∷ ( VariantFMatchCases rl vo' a b
@@ -77,7 +77,7 @@ foreign import data VariantCase ∷ Type
 
 foreign import data VariantFCase ∷ Type → Type
 
-class VariantTags (rl ∷ RL.RowList) where
+class VariantTags (rl ∷ RL.RowList Type) where
   variantTags ∷ RLProxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags RL.Nil where

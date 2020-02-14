@@ -47,7 +47,7 @@ newtype VariantFRep f a = VariantFRep
 
 data UnknownF a
 
-data VariantF (f ∷ # Type) a
+data VariantF (f ∷ Row Type) a
 
 instance functorVariantF ∷ Functor (VariantF r) where
   map f a =
@@ -64,7 +64,7 @@ instance functorVariantF ∷ Functor (VariantF r) where
     coerceV ∷ ∀ f a. VariantFRep f a → VariantF r a
     coerceV = unsafeCoerce
 
-class FoldableVFRL (rl :: RL.RowList) (row :: # Type) | rl -> row where
+class FoldableVFRL (rl :: RL.RowList Type) (row :: Row Type) | rl -> row where
   foldrVFRL :: forall a b. RLProxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
   foldlVFRL :: forall a b. RLProxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
   foldMapVFRL :: forall a m. Monoid m => RLProxy rl -> (a -> m) -> VariantF row a -> m
@@ -87,7 +87,7 @@ instance foldableCons ::
   foldMapVFRL _ f = on k (TF.foldMap f) (foldMapVFRL (RLProxy :: RLProxy rl) f)
     where k = SProxy :: SProxy k
 
-class FoldableVFRL rl row <= TraversableVFRL (rl :: RL.RowList) (row :: # Type) | rl -> row where
+class FoldableVFRL rl row <= TraversableVFRL (rl :: RL.RowList Type) (row :: Row Type) | rl -> row where
   traverseVFRL :: forall f a b. Applicative f => RLProxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
 
 instance traversableNil :: TraversableVFRL RL.Nil () where
@@ -327,7 +327,7 @@ unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
 revariantF ∷ ∀ r a. UnvariantF r a -> VariantF r a
 revariantF (UnvariantF f) = f inj
 
-class VariantFShows (rl ∷ RL.RowList) x where
+class VariantFShows (rl ∷ RL.RowList Type) x where
   variantFShows ∷ RLProxy rl → Proxy x → L.List (VariantCase → String)
 
 instance showVariantFNil ∷ VariantFShows RL.Nil x where
