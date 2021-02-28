@@ -39,9 +39,12 @@ import Prim.RowList as RL
 import Record.Unsafe (unsafeGet, unsafeHas) as Exports
 import Type.Data.Row (RProxy(..))
 import Type.Data.RowList (RLProxy(..))
+import Type.Proxy (Proxy(..))
 import Type.Equality (class TypeEquals)
 
 -- | Proxy for a `Functor`.
+-- |
+-- | **Deprecated** Use `Type.Data.Proxy (Proxy)` instead.
 data FProxy (a ∷ Type → Type) = FProxy
 
 newtype VariantRep a = VariantRep
@@ -49,7 +52,8 @@ newtype VariantRep a = VariantRep
   , value ∷ a
   }
 
-class VariantMatchCases (rl ∷ RL.RowList Type) (vo ∷ # Type) b | rl → vo b
+class VariantMatchCases :: RL.RowList Type -> Row Type -> Type -> Constraint
+class VariantMatchCases rl vo b | rl → vo b
 
 instance variantMatchCons
   ∷ ( VariantMatchCases rl vo' b
@@ -61,11 +65,12 @@ instance variantMatchCons
 instance variantMatchNil
   ∷ VariantMatchCases RL.Nil () b
 
-class VariantFMatchCases (rl ∷ RL.RowList Type) (vo ∷ # Type) a b | rl → vo a b
+class VariantFMatchCases :: RL.RowList Type -> Row Type -> Type -> Type -> Constraint
+class VariantFMatchCases rl vo a b | rl → vo a b
 
 instance variantFMatchCons
   ∷ ( VariantFMatchCases rl vo' a b
-    , R.Cons sym (FProxy f) vo' vo
+    , R.Cons sym (Proxy f) vo' vo
     , TypeEquals k (f a → b)
     )
   ⇒ VariantFMatchCases (RL.Cons sym k rl) vo a b
@@ -78,13 +83,13 @@ foreign import data VariantCase ∷ Type
 foreign import data VariantFCase ∷ Type → Type
 
 class VariantTags (rl ∷ RL.RowList Type) where
-  variantTags ∷ RLProxy rl → L.List String
+  variantTags ∷ forall proxy. proxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags RL.Nil where
   variantTags _ = L.Nil
 
 instance variantTagsCons ∷ (VariantTags rs, IsSymbol sym) ⇒ VariantTags (RL.Cons sym a rs) where
-  variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (RLProxy ∷ RLProxy rs))
+  variantTags _ = L.Cons (reflectSymbol (Proxy ∷ Proxy sym)) (variantTags (Proxy ∷ Proxy rs))
 
 -- | A specialized lookup function which bails early. Foldable's `elem`
 -- | is always worst-case.
@@ -248,8 +253,9 @@ lookupToEnum = go
       | otherwise → go (ix - d.cardinality) ts ds
     _, _ → Nothing
 
+class Contractable :: Row Type -> Row Type -> Constraint
 class Contractable gt lt where
-  contractWith ∷ ∀ f a. Alternative f ⇒ RProxy gt → RProxy lt → String → a → f a
+  contractWith ∷ ∀ proxy1 proxy2 f a. Alternative f ⇒ proxy1 gt → proxy2 lt → String → a → f a
 
 instance contractWithInstance
   ∷ ( RL.RowToList lt ltl
@@ -259,7 +265,7 @@ instance contractWithInstance
   ⇒ Contractable gt lt
   where
   contractWith _ _ tag a
-    | lookupTag tag (variantTags (RLProxy ∷ RLProxy ltl)) = pure a
+    | lookupTag tag (variantTags (Proxy ∷ Proxy ltl)) = pure a
     | otherwise = empty
 
 type BoundedDict a =
