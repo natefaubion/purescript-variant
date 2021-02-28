@@ -3,7 +3,7 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (FProxy, SProxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (Proxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -11,27 +11,27 @@ import Effect (Effect)
 import Test.Assert (assert')
 
 type TestVariants =
-  ( foo ∷ FProxy Maybe
-  , bar ∷ FProxy (Tuple String)
-  , baz ∷ FProxy (Either String)
+  ( foo ∷ Proxy Maybe
+  , bar ∷ Proxy (Tuple String)
+  , baz ∷ Proxy (Either String)
   )
 
-_foo ∷ SProxy "foo"
-_foo = SProxy
+_foo ∷ Proxy "foo"
+_foo = Proxy
 
-_bar ∷ SProxy "bar"
-_bar = SProxy
+_bar ∷ Proxy "bar"
+_bar = Proxy
 
-_baz ∷ SProxy "baz"
-_baz = SProxy
+_baz ∷ Proxy "baz"
+_baz = Proxy
 
-foo ∷ ∀ r. VariantF (foo ∷ FProxy Maybe | r) Int
+foo ∷ ∀ r. VariantF (foo ∷ Proxy Maybe | r) Int
 foo = inj _foo (Just 42)
 
-bar ∷ ∀ r. VariantF (bar ∷ FProxy (Tuple String) | r) Int
+bar ∷ ∀ r. VariantF (bar ∷ Proxy (Tuple String) | r) Int
 bar = inj _bar (Tuple "bar" 42)
 
-baz ∷ ∀ r. VariantF (baz ∷ FProxy (Either String) | r) Int
+baz ∷ ∀ r. VariantF (baz ∷ Proxy (Either String) | r) Int
 baz = inj _baz (Left "baz")
 
 completeness ∷ ∀ r a. VariantF r a → VariantF r a
@@ -64,7 +64,7 @@ test = do
   assert' "case2: baz" $ case2 baz == "no match"
 
   let
-    case3 ∷ VariantF (foo ∷ FProxy Maybe) String → String
+    case3 ∷ VariantF (foo ∷ Proxy Maybe) String → String
     case3 = case_ # on _foo (\a → "foo: " <> show a)
 
   assert' "map" $ case3 (show <$> foo) == "foo: (Just \"42\")"
@@ -112,10 +112,10 @@ test = do
 
   assert' "contract: pass"
     $ isJust
-    $ (contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ FProxy Maybe) Int))
+    $ (contract (foo ∷ VariantF TestVariants Int) ∷ Maybe (VariantF (foo ∷ Proxy Maybe) Int))
 
   assert' "contract: fail"
     $ L.null
-    $ (contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ FProxy Maybe) Int))
+    $ (contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ Proxy Maybe) Int))
 
   assert' "show" $ show (foo :: VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""
