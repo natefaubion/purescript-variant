@@ -28,15 +28,16 @@ import Prelude
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
-import Data.Symbol (SProxy(..), class IsSymbol, reflectSymbol)
+import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
 import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, FProxy, RLProxy(..), RProxy(..), VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
+import Type.Proxy (Proxy(..)) as Exports
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype VariantFRep f a = VariantFRep

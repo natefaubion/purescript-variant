@@ -24,6 +24,7 @@ module Data.Variant.Internal
   , module Exports
   , module Type.Data.Row
   , module Type.Data.RowList
+  , module Type.Proxy
   ) where
 
 import Prelude
@@ -32,7 +33,7 @@ import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Maybe (Maybe(..))
 import Data.Maybe as M
-import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
+import Data.Symbol (class IsSymbol, reflectSymbol)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
