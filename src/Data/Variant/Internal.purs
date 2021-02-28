@@ -66,12 +66,12 @@ instance variantMatchCons
 instance variantMatchNil
   ∷ VariantMatchCases RL.Nil () b
 
-class VariantFMatchCases :: RL.RowList Type -> Row Type -> Type -> Type -> Constraint
+class VariantFMatchCases :: RL.RowList Type -> Row (Type -> Type) -> Type -> Type -> Constraint
 class VariantFMatchCases rl vo a b | rl → vo a b
 
 instance variantFMatchCons
   ∷ ( VariantFMatchCases rl vo' a b
-    , R.Cons sym (Proxy f) vo' vo
+    , R.Cons sym f vo' vo
     , TypeEquals k (f a → b)
     )
   ⇒ VariantFMatchCases (RL.Cons sym k rl) vo a b
@@ -83,7 +83,8 @@ foreign import data VariantCase ∷ Type
 
 foreign import data VariantFCase ∷ Type → Type
 
-class VariantTags (rl ∷ RL.RowList Type) where
+class VariantTags :: forall k. RL.RowList k -> Constraint
+class VariantTags rl where
   variantTags ∷ forall proxy. proxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags RL.Nil where
@@ -254,7 +255,7 @@ lookupToEnum = go
       | otherwise → go (ix - d.cardinality) ts ds
     _, _ → Nothing
 
-class Contractable :: Row Type -> Row Type -> Constraint
+class Contractable :: forall k. Row k -> Row k -> Constraint
 class Contractable gt lt where
   contractWith ∷ ∀ proxy1 proxy2 f a. Alternative f ⇒ proxy1 gt → proxy2 lt → String → a → f a
 

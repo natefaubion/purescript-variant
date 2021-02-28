@@ -49,7 +49,7 @@ newtype VariantFRep f a = VariantFRep
 data UnknownF :: Type -> Type
 data UnknownF a
 
-data VariantF :: Row Type -> Type -> Type
+data VariantF :: Row (Type -> Type) -> Type -> Type
 data VariantF f a
 
 instance functorVariantF ∷ Functor (VariantF r) where
@@ -67,7 +67,7 @@ instance functorVariantF ∷ Functor (VariantF r) where
     coerceV ∷ ∀ f a. VariantFRep f a → VariantF r a
     coerceV = unsafeCoerce
 
-class FoldableVFRL :: RL.RowList Type -> Row Type -> Constraint
+class FoldableVFRL :: RL.RowList (Type -> Type) -> Row (Type -> Type) -> Constraint
 class FoldableVFRL rl row | rl -> row where
   foldrVFRL :: forall proxy a b. proxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
   foldlVFRL :: forall proxy a b. proxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
@@ -82,8 +82,8 @@ instance foldableCons ::
   ( IsSymbol k
   , TF.Foldable f
   , FoldableVFRL rl r
-  , R.Cons k (Proxy f) r r'
-  ) => FoldableVFRL (RL.Cons k (Proxy f) rl) r' where
+  , R.Cons k f r r'
+  ) => FoldableVFRL (RL.Cons k f rl) r' where
   foldrVFRL _ f b = on k (TF.foldr f b) (foldrVFRL (Proxy :: Proxy rl) f b)
     where k = Proxy :: Proxy k
   foldlVFRL _ f b = on k (TF.foldl f b) (foldlVFRL (Proxy :: Proxy rl) f b)
@@ -91,7 +91,7 @@ instance foldableCons ::
   foldMapVFRL _ f = on k (TF.foldMap f) (foldMapVFRL (Proxy :: Proxy rl) f)
     where k = Proxy :: Proxy k
 
-class TraversableVFRL :: RL.RowList Type -> Row Type -> Constraint
+class TraversableVFRL :: RL.RowList (Type -> Type) -> Row (Type -> Type) -> Constraint
 class FoldableVFRL rl row <= TraversableVFRL rl row | rl -> row where
   traverseVFRL :: forall proxy f a b. Applicative f => proxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
 
@@ -102,9 +102,9 @@ instance traversableCons ::
   ( IsSymbol k
   , TF.Traversable f
   , TraversableVFRL rl r
-  , R.Cons k (Proxy f) r r'
+  , R.Cons k f r r'
   , R.Union r rx r'
-  ) => TraversableVFRL (RL.Cons k (Proxy f) rl) r' where
+  ) => TraversableVFRL (RL.Cons k f rl) r' where
   traverseVFRL _ f = on k (TF.traverse f >>> map (inj k))
     (traverseVFRL (Proxy :: Proxy rl) f >>> map expand)
     where k = Proxy :: Proxy k
@@ -129,7 +129,7 @@ instance traversableVariantF ::
 -- | ```
 inj
   ∷ ∀ proxy sym f a r1 r2
-  . R.Cons sym (Proxy f) r1 r2
+  . R.Cons sym f r1 r2
   ⇒ IsSymbol sym
   ⇒ Functor f
   ⇒ proxy sym
@@ -148,7 +148,7 @@ inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
 -- | ```
 prj
   ∷ ∀ proxy sym f a r1 r2 g
-  . R.Cons sym (Proxy f) r1 r2
+  . R.Cons sym f r1 r2
   ⇒ Alternative g
   ⇒ IsSymbol sym
   ⇒ proxy sym
@@ -161,7 +161,7 @@ prj p = on p pure (const empty)
 -- | removed.
 on
   ∷ ∀ proxy sym f a b r1 r2
-  . R.Cons sym (Proxy f) r1 r2
+  . R.Cons sym f r1 r2
   ⇒ IsSymbol sym
   ⇒ proxy sym
   → (f a → b)
@@ -291,7 +291,7 @@ contract v =
 type UnvariantF' r a x =
   ∀ proxy s f o
   . IsSymbol s
-  ⇒ R.Cons s (Proxy f) o r
+  ⇒ R.Cons s f o r
   ⇒ Functor f
   ⇒ proxy s
   → f a
@@ -332,14 +332,14 @@ unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
 revariantF ∷ ∀ r a. UnvariantF r a -> VariantF r a
 revariantF (UnvariantF f) = f inj
 
-class VariantFShows :: RL.RowList Type -> Type -> Constraint
+class VariantFShows :: RL.RowList (Type -> Type) -> Type -> Constraint
 class VariantFShows rl x where
   variantFShows ∷ forall proxy1 proxy2. proxy1 rl → proxy2 x → L.List (VariantCase → String)
 
 instance showVariantFNil ∷ VariantFShows RL.Nil x where
   variantFShows _ _ = L.Nil
 
-instance showVariantFCons ∷ (VariantFShows rs x, TypeEquals a (Proxy f), Show (f x), Show x) ⇒ VariantFShows (RL.Cons sym a rs) x where
+instance showVariantFCons ∷ (VariantFShows rs x, TypeEquals a f, Show (f x), Show x) ⇒ VariantFShows (RL.Cons sym a rs) x where
   variantFShows _ p =
     L.Cons (coerceShow show) (variantFShows (Proxy ∷ Proxy rs) p)
     where
