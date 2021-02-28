@@ -125,7 +125,7 @@ instance traversableVariantF ::
 -- | Inject into the variant at a given label.
 -- | ```purescript
 -- | maybeAtFoo :: forall r. VariantF (foo :: FProxy Maybe | r) Int
--- | maybeAtFoo = inj (SProxy :: SProxy "foo") (Just 42)
+-- | maybeAtFoo = inj (Proxy :: Proxy "foo") (Just 42)
 -- | ```
 inj
   ∷ ∀ proxy sym f a r1 r2
@@ -142,7 +142,7 @@ inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
 
 -- | Attempt to read a variant at a given label.
 -- | ```purescript
--- | case prj (SProxy :: SProxy "foo") maybeAtFoo of
+-- | case prj (Proxy :: Proxy "foo") maybeAtFoo of
 -- |   Just (Just i) -> i + 1
 -- |   _ -> 0
 -- | ```
@@ -220,9 +220,9 @@ onMatch r k v =
 -- | ```purescript
 -- | caseFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
 -- | caseFn = case_
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> maybe "nothing" show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> show (snd bar))
--- |  # on (SProxy :: SProxy "baz") (\baz -> "Baz: " <> either id show baz)
+-- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> maybe "nothing" show foo)
+-- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> show (snd bar))
+-- |  # on (Proxy :: Proxy "baz") (\baz -> "Baz: " <> either id show baz)
 -- | ```
 case_ ∷ ∀ a b. VariantF () a → b
 case_ r = unsafeCrashWith case unsafeCoerce r of
@@ -251,8 +251,8 @@ match r = case_ # onMatch r
 -- | ```purescript
 -- | caseFn :: forall r. VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String) | r) Int -> String
 -- | caseFn = default "No match"
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> maybe "nothing" show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> show (snd bar))
+-- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> maybe "nothing" show foo)
+-- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> show (snd bar))
 -- | ```
 default ∷ ∀ a b r. a → VariantF r b → a
 default a _ = a

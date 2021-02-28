@@ -43,7 +43,7 @@ foreign import data Variant ∷ Row Type → Type
 -- | Inject into the variant at a given label.
 -- | ```purescript
 -- | intAtFoo :: forall r. Variant (foo :: Int | r)
--- | intAtFoo = inj (SProxy :: SProxy "foo") 42
+-- | intAtFoo = inj (Proxy :: Proxy "foo") 42
 -- | ```
 inj
   ∷ ∀ proxy sym a r1 r2
@@ -59,7 +59,7 @@ inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
 
 -- | Attempt to read a variant at a given label.
 -- | ```purescript
--- | case prj (SProxy :: SProxy "foo") intAtFoo of
+-- | case prj (Proxy :: Proxy "foo") intAtFoo of
 -- |   Just i  -> i + 1
 -- |   Nothing -> 0
 -- | ```
@@ -137,9 +137,9 @@ onMatch r k v =
 -- | ```purescript
 -- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
 -- | caseFn = case_
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
--- |  # on (SProxy :: SProxy "baz") (\baz -> "Baz: " <> show baz)
+-- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> show foo)
+-- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> bar)
+-- |  # on (Proxy :: Proxy "baz") (\baz -> "Baz: " <> show baz)
 -- | ```
 case_ ∷ ∀ a. Variant () → a
 case_ r = unsafeCrashWith case unsafeCoerce r of
@@ -168,8 +168,8 @@ match r = case_ # onMatch r
 -- | ```purescript
 -- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
 -- | caseFn = default "No match"
--- |  # on (SProxy :: SProxy "foo") (\foo -> "Foo: " <> show foo)
--- |  # on (SProxy :: SProxy "bar") (\bar -> "Bar: " <> bar)
+-- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> show foo)
+-- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> bar)
 -- | ```
 default ∷ ∀ a r. a → Variant r → a
 default a _ = a
