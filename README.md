@@ -83,6 +83,8 @@ This library just uses the same structural row system that we use with records
 We lift values into `Variant` with `inj` by specifying a _tag_.
 
 ```purescript
+import Type.Proxy (Proxy(..))
+
 someFoo :: forall v. Variant (foo :: Int | v)
 someFoo = inj (Proxy :: Proxy "foo") 42
 ```
