@@ -87,7 +87,7 @@ someFoo :: forall v. Variant (foo :: Int | v)
 someFoo = inj (Proxy :: Proxy "foo") 42
 ```
 
-`SProxy` is just a way to tell the compiler what our tag is at the type level.
+`Proxy` is just a way to tell the compiler what our tag is at the type level.
 I can stamp out a bunch of these with different labels:
 
 ```purescript
