@@ -184,13 +184,13 @@ which lives in `Data.Functor.Variant`. `VariantF` is just like `Variant`,
 except it's indexed by things of kind `Type -> Type`.
 
 ```purescript
-someFoo :: forall v. VariantF (foo :: Proxy Maybe | v) Int
+someFoo :: forall v. VariantF (foo :: Maybe | v) Int
 someFoo = inj (Proxy :: Proxy "foo") (Just 42)
 
-someBar :: forall v. VariantF (bar :: Proxy (Tuple String) | v) Int
+someBar :: forall v. VariantF (bar :: Tuple String | v) Int
 someBar = inj (Proxy :: Proxy "bar") (Tuple "bar" 42)
 
-someBaz :: forall v a. VariantF (baz :: Proxy (Either String) | v) a
+someBaz :: forall v a. VariantF (baz :: Either String | v) a
 someBaz = inj (Proxy :: Proxy "baz") (Left "Baz")
 ```
 
