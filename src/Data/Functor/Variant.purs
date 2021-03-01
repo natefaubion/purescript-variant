@@ -218,7 +218,7 @@ onMatch r k v =
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
--- | caseFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
+-- | caseFn :: VariantF (foo :: Maybe, bar :: Tuple String, baz :: Either String) Int -> String
 -- | caseFn = case_
 -- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> maybe "nothing" show foo)
 -- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> show (snd bar))
@@ -230,7 +230,7 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 
 -- | Combinator for exhaustive pattern matching using an `onMatch` case record.
 -- | ```purescript
--- | matchFn :: VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String), baz :: FProxy (Either String)) Int -> String
+-- | matchFn :: VariantF (foo :: Maybe, bar :: Tuple String, baz :: Either String) Int -> String
 -- | matchFn = match
 -- |  { foo: \foo -> "Foo: " <> maybe "nothing" show foo
 -- |  , bar: \bar -> "Bar: " <> show (snd bar)
@@ -249,7 +249,7 @@ match r = case_ # onMatch r
 
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
--- | caseFn :: forall r. VariantF (foo :: FProxy Maybe, bar :: FProxy (Tuple String) | r) Int -> String
+-- | caseFn :: forall r. VariantF (foo :: Maybe, bar :: Tuple String | r) Int -> String
 -- | caseFn = default "No match"
 -- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> maybe "nothing" show foo)
 -- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> show (snd bar))
