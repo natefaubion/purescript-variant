@@ -83,22 +83,24 @@ This library just uses the same structural row system that we use with records
 We lift values into `Variant` with `inj` by specifying a _tag_.
 
 ```purescript
+import Type.Proxy (Proxy(..))
+
 someFoo :: forall v. Variant (foo :: Int | v)
-someFoo = inj (SProxy :: SProxy "foo") 42
+someFoo = inj (Proxy :: Proxy "foo") 42
 ```
 
-`SProxy` is just a way to tell the compiler what our tag is at the type level.
+`Proxy` is just a way to tell the compiler what our tag is at the type level.
 I can stamp out a bunch of these with different labels:
 
 ```purescript
 someFoo :: forall v. Variant (foo :: Int | v)
-someFoo = inj (SProxy :: SProxy "foo") 42
+someFoo = inj (Proxy :: Proxy "foo") 42
 
 someBar :: forall v. Variant (bar :: Boolean | v)
-someBar = inj (SProxy :: SProxy "bar") true
+someBar = inj (Proxy :: Proxy "bar") true
 
 someBaz :: forall v. Variant (baz :: String | v)
-someBaz = inj (SProxy :: SProxy "baz") "Baz"
+someBaz = inj (Proxy :: Proxy "baz") "Baz"
 ```
 
 We can try to extract a value from this via `on`, which takes a function to
@@ -107,7 +109,7 @@ case of failure.
 
 ```purescript
 fooToString :: forall v. Variant (foo :: Int | v) -> String
-fooToString = on (SProxy :: SProxy "foo") show (\_ -> "not foo")
+fooToString = on (Proxy :: Proxy "foo") show (\_ -> "not foo")
 
 fooToString someFoo == "42"
 fooToString someBar == "not foo"
@@ -117,9 +119,9 @@ We can chain usages of `on` and terminate it with `case_` (for compiler-checked
 exhaustivity) or `default` (to provide a default value in case of failure).
 
 ```purescript
-_foo = SProxy :: SProxy "foo"
-_bar = SProxy :: SProxy "bar"
-_baz = SProxy :: SProxy "baz"
+_foo = Proxy :: Proxy "foo"
+_bar = Proxy :: Proxy "bar"
+_baz = Proxy :: Proxy "baz"
 
 allToString :: Variant (foo :: Int, bar :: Boolean, baz :: String) -> String
 allToString =
@@ -182,17 +184,14 @@ which lives in `Data.Functor.Variant`. `VariantF` is just like `Variant`,
 except it's indexed by things of kind `Type -> Type`.
 
 ```purescript
-someFoo :: forall v. VariantF (foo :: FProxy Maybe | v) Int
-someFoo = inj (SProxy :: SProxy "foo") (Just 42)
+someFoo :: forall v. VariantF (foo :: Maybe | v) Int
+someFoo = inj (Proxy :: Proxy "foo") (Just 42)
 
-someBar :: forall v. VariantF (bar :: FProxy (Tuple String) | v) Int
-someBar = inj (SProxy :: SProxy "bar") (Tuple "bar" 42)
+someBar :: forall v. VariantF (bar :: Tuple String | v) Int
+someBar = inj (Proxy :: Proxy "bar") (Tuple "bar" 42)
 
-someBaz :: forall v a. VariantF (baz :: FProxy (Either String) | v) a
-someBaz = inj (SProxy :: SProxy "baz") (Left "Baz")
+someBaz :: forall v a. VariantF (baz :: Either String | v) a
+someBaz = inj (Proxy :: Proxy "baz") (Left "Baz")
 ```
 
-`VariantF` supports all the same combinators as `Variant`. We need to use
-`FProxy` in the types, however, because the row machinery in PuresScript
-is not poly-kinded. `FProxy` lets us talk about functors, but trick the
-type system into thinking they are the expected kind.
+`VariantF` supports all the same combinators as `Variant`.
