@@ -30,7 +30,7 @@ import Data.List as L
 import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
-import Data.Variant.Internal (class Contractable, FProxy(..), class VariantFMatchCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantFMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R

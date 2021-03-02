@@ -1,6 +1,5 @@
 module Data.Variant.Internal
-  ( FProxy(..)
-  , VariantRep(..)
+  ( VariantRep(..)
   , VariantCase
   , VariantFCase
   , class VariantTags, variantTags
@@ -42,11 +41,6 @@ import Type.Data.Row (RProxy(..))
 import Type.Data.RowList (RLProxy(..))
 import Type.Proxy (Proxy(..))
 import Type.Equality (class TypeEquals)
-
--- | Proxy for a `Functor`.
--- |
--- | **Deprecated** Use `Type.Data.Proxy (Proxy)` instead.
-data FProxy (a ∷ Type → Type) = FProxy
 
 newtype VariantRep a = VariantRep
   { type ∷ String
