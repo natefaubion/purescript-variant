@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "build": "pulp build -- --censor-lib --strict",
+    "build": "pulp build",
     "test": "pulp test"
   },
   "devDependencies": {
