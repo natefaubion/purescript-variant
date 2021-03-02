@@ -124,7 +124,7 @@ instance traversableVariantF ::
 
 -- | Inject into the variant at a given label.
 -- | ```purescript
--- | maybeAtFoo :: forall r. VariantF (foo :: FProxy Maybe | r) Int
+-- | maybeAtFoo :: forall r. VariantF (foo :: Maybe | r) Int
 -- | maybeAtFoo = inj (Proxy :: Proxy "foo") (Just 42)
 -- | ```
 inj
