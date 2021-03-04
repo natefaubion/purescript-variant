@@ -3,12 +3,13 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (Proxy(..), VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Test.Assert (assert')
+import Type.Proxy(Proxy(..))
 
 type TestVariants =
   ( foo ∷ Maybe
