@@ -21,9 +21,6 @@ module Data.Variant.Internal
   , BoundedEnumDict
   , impossible
   , module Exports
-  , module Type.Data.Row
-  , module Type.Data.RowList
-  , module Type.Proxy
   ) where
 
 import Prelude
@@ -37,8 +34,6 @@ import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
 import Record.Unsafe (unsafeGet, unsafeHas) as Exports
-import Type.Data.Row (RProxy(..))
-import Type.Data.RowList (RLProxy(..))
 import Type.Proxy (Proxy(..))
 import Type.Equality (class TypeEquals)
 

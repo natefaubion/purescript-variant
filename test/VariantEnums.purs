@@ -4,9 +4,10 @@ import Prelude
 
 import Data.Enum (Cardinality(..), cardinality, succ, pred, toEnum, fromEnum)
 import Data.Maybe (Maybe(..))
-import Data.Variant (SProxy(..), Variant, inj)
+import Data.Variant (Variant, inj)
 import Effect (Effect)
 import Test.Assert (assert')
+import Type.Proxy (Proxy(..))
 
 type T = Variant
   ( a ∷ Unit
@@ -20,9 +21,9 @@ type TT = Variant
   , c ∷ T
   )
 
-_a = SProxy ∷ SProxy "a"
-_b = SProxy ∷ SProxy "b"
-_c = SProxy ∷ SProxy "c"
+_a = Proxy ∷ Proxy "a"
+_b = Proxy ∷ Proxy "b"
+_c = Proxy ∷ Proxy "c"
 
 test ∷ Effect Unit
 test = do

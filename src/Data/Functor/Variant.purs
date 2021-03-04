@@ -27,7 +27,6 @@ import Prelude
 
 import Control.Alternative (class Alternative, empty)
 import Data.List as L
-import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
 import Data.Variant.Internal (class Contractable, class VariantFMatchCases) as Exports
@@ -37,7 +36,6 @@ import Prim.Row as R
 import Prim.RowList as RL
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
-import Type.Proxy (Proxy(..)) as Exports
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype VariantFRep f a = VariantFRep
