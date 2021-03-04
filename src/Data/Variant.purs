@@ -27,7 +27,6 @@ import Control.Alternative (empty, class Alternative)
 import Data.Enum (class Enum, pred, succ, class BoundedEnum, Cardinality(..), fromEnum, toEnum, cardinality)
 import Data.List as L
 import Data.Maybe (Maybe)
-import Data.Symbol (SProxy(..)) as Exports
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
 import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantTags, BoundedDict, BoundedEnumDict, VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
@@ -35,7 +34,6 @@ import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
 import Type.Proxy (Proxy(..))
-import Type.Proxy (Proxy(..)) as Exports
 import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data Variant ∷ Row Type → Type
