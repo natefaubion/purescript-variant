@@ -319,9 +319,6 @@ instance enumVariantCons ∷ (VariantBoundedEnums rs, BoundedEnum a) ⇒ Variant
       , cardinality: coerceCardinality cardinality
       }
 
-    coerceA ∷ a → VariantCase
-    coerceA = unsafeCoerce
-
     coerceAToMbA ∷ (a → Maybe a) → VariantCase → Maybe VariantCase
     coerceAToMbA = unsafeCoerce
 

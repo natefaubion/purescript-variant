@@ -174,7 +174,7 @@ lookupPred (VariantRep rep) = go1
       | otherwise → go2 t1 b1 d1 ts1 bs1 ds1
     _, _, _ → impossible "pred"
 
-  go2 t1 b1 d1 = case _, _, _ of
+  go2 t1 b1 _ = case _, _, _ of
     L.Cons t2 ts2, L.Cons b2 bs2, L.Cons d2 ds2
       | t2 == rep.type →
           case d2.pred rep.value of
@@ -193,7 +193,7 @@ lookupSucc
 lookupSucc (VariantRep rep) = go
   where
   go = case _, _, _ of
-    L.Cons t1 ts1, L.Cons b1 bs1, L.Cons d1 ds1
+    L.Cons t1 ts1, L.Cons _ bs1, L.Cons d1 ds1
       | t1 == rep.type →
           case d1.succ rep.value of
             Just z  → Just $ VariantRep { type: t1, value: z }
