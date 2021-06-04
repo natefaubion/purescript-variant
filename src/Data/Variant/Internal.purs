@@ -1,6 +1,5 @@
 module Data.Variant.Internal
-  ( FProxy(..)
-  , VariantRep(..)
+  ( VariantRep(..)
   , VariantCase
   , VariantFCase
   , class VariantTags, variantTags
@@ -26,8 +25,6 @@ module Data.Variant.Internal
   , BoundedEnumDict
   , impossible
   , module Exports
-  , module Type.Data.Row
-  , module Type.Data.RowList
   ) where
 
 import Prelude
@@ -36,24 +33,21 @@ import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Maybe (Maybe(..))
 import Data.Maybe as M
-import Data.Symbol (class IsSymbol, SProxy(SProxy), reflectSymbol)
+import Data.Symbol (class IsSymbol, reflectSymbol)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
 import Record.Unsafe (unsafeGet, unsafeHas) as Exports
-import Type.Data.Row (RProxy(..))
-import Type.Data.RowList (RLProxy(..))
+import Type.Proxy (Proxy(..))
 import Type.Equality (class TypeEquals)
-
--- | Proxy for a `Functor`.
-data FProxy (a ∷ Type → Type) = FProxy
 
 newtype VariantRep a = VariantRep
   { type ∷ String
   , value ∷ a
   }
 
-class VariantMatchCases (rl ∷ RL.RowList) (vo ∷ # Type) b | rl → vo b
+class VariantMatchCases :: RL.RowList Type → Row Type → Type → Constraint
+class VariantMatchCases rl vo b | rl → vo b
 
 instance variantMatchCons
   ∷ ( VariantMatchCases rl vo' b
@@ -65,11 +59,12 @@ instance variantMatchCons
 instance variantMatchNil
   ∷ VariantMatchCases RL.Nil () b
 
-class VariantFMatchCases (rl ∷ RL.RowList) (vo ∷ # Type) a b | rl → vo a b
+class VariantFMatchCases :: RL.RowList Type → Row (Type → Type) → Type → Type → Constraint
+class VariantFMatchCases rl vo a b | rl → vo a b
 
 instance variantFMatchCons
   ∷ ( VariantFMatchCases rl vo' a b
-    , R.Cons sym (FProxy f) vo' vo
+    , R.Cons sym f vo' vo
     , TypeEquals k (f a → b)
     )
   ⇒ VariantFMatchCases (RL.Cons sym k rl) vo a b
@@ -77,8 +72,8 @@ instance variantFMatchCons
 instance variantFMatchNil
   ∷ VariantFMatchCases RL.Nil () a b
 
-class VariantMapCases (rl ∷ RL.RowList)
-  (ri ∷ # Type) (ro ∷ # Type)
+class VariantMapCases (rl ∷ RL.RowList Type)
+  (ri ∷ Row Type) (ro ∷ Row Type)
   | rl → ri ro
 
 instance variantMapCons
@@ -92,13 +87,13 @@ instance variantMapCons
 instance variantMapNil
   ∷ VariantMapCases RL.Nil () ()
 
-class VariantFMapCases (rl ∷ RL.RowList)
-  (ri ∷ # Type) (ro ∷ # Type) (a ∷ Type) (b ∷ Type)
+class VariantFMapCases (rl ∷ RL.RowList Type)
+  (ri ∷ Row (Type → Type)) (ro ∷ Row (Type → Type)) (a ∷ Type) (b ∷ Type)
   | rl → ri ro
 
 instance variantFMapCons
-  ∷ ( R.Cons sym (FProxy f) ri' ri
-    , R.Cons sym (FProxy g) ro' ro
+  ∷ ( R.Cons sym f ri' ri
+    , R.Cons sym g ro' ro
     , VariantFMapCases rl ri' ro' a b
     , TypeEquals k (f a → g b)
     )
@@ -107,8 +102,8 @@ instance variantFMapCons
 instance variantFMapNil
   ∷ VariantFMapCases RL.Nil () () a b
 
-class VariantTravCases (m ∷ Type → Type) (rl ∷ RL.RowList)
-  (ri ∷ # Type) (ro ∷ # Type)
+class VariantTravCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
+  (ri ∷ Row Type) (ro ∷ Row Type)
   | rl → ri ro
 
 instance variantTravCons
@@ -122,13 +117,13 @@ instance variantTravCons
 instance variantTravNil
   ∷ VariantTravCases m RL.Nil () ()
 
-class VariantFTravCases (m ∷ Type → Type) (rl ∷ RL.RowList)
-  (ri ∷ # Type) (ro ∷ # Type) (a ∷ Type) (b ∷ Type)
+class VariantFTravCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
+  (ri ∷ Row (Type → Type)) (ro ∷ Row (Type → Type)) (a ∷ Type) (b ∷ Type)
   | rl → ri ro
 
 instance variantFTravCons
-  ∷ ( R.Cons sym (FProxy f) ri' ri
-    , R.Cons sym (FProxy g) ro' ro
+  ∷ ( R.Cons sym f ri' ri
+    , R.Cons sym g ro' ro
     , VariantFTravCases m rl ri' ro' a b
     , TypeEquals k (f a → m (g b))
     )
@@ -141,14 +136,15 @@ foreign import data VariantCase ∷ Type
 
 foreign import data VariantFCase ∷ Type → Type
 
-class VariantTags (rl ∷ RL.RowList) where
-  variantTags ∷ RLProxy rl → L.List String
+class VariantTags :: forall k. RL.RowList k → Constraint
+class VariantTags rl where
+  variantTags ∷ forall proxy. proxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags RL.Nil where
   variantTags _ = L.Nil
 
 instance variantTagsCons ∷ (VariantTags rs, IsSymbol sym) ⇒ VariantTags (RL.Cons sym a rs) where
-  variantTags _ = L.Cons (reflectSymbol (SProxy ∷ SProxy sym)) (variantTags (RLProxy ∷ RLProxy rs))
+  variantTags _ = L.Cons (reflectSymbol (Proxy ∷ Proxy sym)) (variantTags (Proxy ∷ Proxy rs))
 
 -- | A specialized lookup function which bails early. Foldable's `elem`
 -- | is always worst-case.
@@ -242,7 +238,7 @@ lookupPred (VariantRep rep) = go1
       | otherwise → go2 t1 b1 d1 ts1 bs1 ds1
     _, _, _ → impossible "pred"
 
-  go2 t1 b1 d1 = case _, _, _ of
+  go2 t1 b1 _ = case _, _, _ of
     L.Cons t2 ts2, L.Cons b2 bs2, L.Cons d2 ds2
       | t2 == rep.type →
           case d2.pred rep.value of
@@ -261,7 +257,7 @@ lookupSucc
 lookupSucc (VariantRep rep) = go
   where
   go = case _, _, _ of
-    L.Cons t1 ts1, L.Cons b1 bs1, L.Cons d1 ds1
+    L.Cons t1 ts1, L.Cons _ bs1, L.Cons d1 ds1
       | t1 == rep.type →
           case d1.succ rep.value of
             Just z  → Just $ VariantRep { type: t1, value: z }
@@ -312,8 +308,9 @@ lookupToEnum = go
       | otherwise → go (ix - d.cardinality) ts ds
     _, _ → Nothing
 
+class Contractable :: forall k. Row k → Row k → Constraint
 class Contractable gt lt where
-  contractWith ∷ ∀ f a. Alternative f ⇒ RProxy gt → RProxy lt → String → a → f a
+  contractWith ∷ ∀ proxy1 proxy2 f a. Alternative f ⇒ proxy1 gt → proxy2 lt → String → a → f a
 
 instance contractWithInstance
   ∷ ( RL.RowToList lt ltl
@@ -323,7 +320,7 @@ instance contractWithInstance
   ⇒ Contractable gt lt
   where
   contractWith _ _ tag a
-    | lookupTag tag (variantTags (RLProxy ∷ RLProxy ltl)) = pure a
+    | lookupTag tag (variantTags (Proxy ∷ Proxy ltl)) = pure a
     | otherwise = empty
 
 type BoundedDict a =

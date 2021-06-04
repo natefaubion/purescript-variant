@@ -5,10 +5,11 @@ import Prelude
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Symbol (reflectSymbol)
-import Data.Variant (SProxy(..), Unvariant(..), Variant, case_, contract, default, expand, inj, overMatch, expandOverMatch, match, on, onMatch, prj, revariant, unvariant)
+import Data.Variant (Variant, on, onMatch, case_, default, expand, expandOverMatch, inj, prj, match, overMatch, contract, Unvariant(..), unvariant, revariant)
 import Effect (Effect)
 import Record.Builder (build, modify, Builder)
 import Test.Assert (assert')
+import Type.Proxy (Proxy(..))
 
 type TestVariants =
   ( foo ∷ Int
@@ -22,14 +23,14 @@ type TestVariants' =
   , baz ∷ String
   )
 
-_foo ∷ SProxy "foo"
-_foo = SProxy
+_foo ∷ Proxy "foo"
+_foo = Proxy
 
-_bar ∷ SProxy "bar"
-_bar = SProxy
+_bar ∷ Proxy "bar"
+_bar = Proxy
 
-_baz ∷ SProxy "baz"
-_baz = SProxy
+_baz ∷ Proxy "baz"
+_baz = Proxy
 
 foo ∷ ∀ r. Variant (foo ∷ Int | r)
 foo = inj _foo 42
