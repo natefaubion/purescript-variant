@@ -94,7 +94,7 @@ class FoldableVFRL rl row <= TraversableVFRL rl row | rl -> row where
   traverseVFRL :: forall proxy f a b. Applicative f => proxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
 
 instance traversableNil :: TraversableVFRL RL.Nil () where
-  traverseVFRL _ f = case_
+  traverseVFRL _ _ = case_
 
 instance traversableCons ::
   ( IsSymbol k
