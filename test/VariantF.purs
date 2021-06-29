@@ -3,7 +3,7 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (VariantF, case_, contract, default, expand, expandOverMatch, inj, match, on, onMatch, overMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (VariantF, case_, contract, default, expand, inj, match, on, onMatch, over, overSome, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -112,15 +112,15 @@ test = do
     map'' ∷ VariantF TestVariants Int → String
     map'' = map (_ + 2) >>> map'
 
-    overMatch' ∷ VariantF TestVariants Int → VariantF TestVariants Int
-    overMatch' = overMatch
+    overSome' ∷ VariantF TestVariants Int → VariantF TestVariants Int
+    overSome' = overSome
       { baz: \(_ ∷ Either String Int) → Right 20
       } expand
 
-    expandOverMatch' ∷ forall r.
+    over' ∷ forall r.
       VariantF (baz ∷ Either String | r) Int →
       VariantF (baz ∷ Either String | r) Int
-    expandOverMatch' = expandOverMatch
+    over' = over
       { baz: \(_ ∷ Either String Int) → Right 20
       } identity
 
@@ -128,13 +128,13 @@ test = do
   assert' "map: bar" $ map'' bar == "bar: (Tuple \"bar\" 44)"
   assert' "map: baz" $ map'' baz == "baz: (Left \"baz\")"
 
-  assert' "overMatch: foo" $ map'' (overMatch' foo) == "foo: (Just 44)"
-  assert' "overMatch: bar" $ map'' (overMatch' bar) == "bar: (Tuple \"bar\" 44)"
-  assert' "overMatch: baz" $ map'' (overMatch' baz) == "baz: (Right 22)"
+  assert' "overSome: foo" $ map'' (overSome' foo) == "foo: (Just 44)"
+  assert' "overSome: bar" $ map'' (overSome' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "overSome: baz" $ map'' (overSome' baz) == "baz: (Right 22)"
 
-  assert' "expandOverMatch: foo" $ map'' (expandOverMatch' foo) == "foo: (Just 44)"
-  assert' "expandOverMatch: bar" $ map'' (expandOverMatch' bar) == "bar: (Tuple \"bar\" 44)"
-  assert' "expandOverMatch: baz" $ map'' (expandOverMatch' baz) == "baz: (Right 22)"
+  assert' "over: foo" $ map'' (over' foo) == "foo: (Just 44)"
+  assert' "over: bar" $ map'' (over' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "over: baz" $ map'' (over' baz) == "baz: (Right 22)"
 
   assert' "contract: pass"
     $ isJust

@@ -5,14 +5,14 @@ module Data.Functor.Variant
   , on
   , onMatch
   , over
+  , overOne
+  , overSome
   , case_
   , match
   , default
-  , overMatch
-  , expandOverMatch
-  , trav
-  , travMatch
-  , expandTravMatch
+  , traverse
+  , traverseOne
+  , traverseSome
   , expand
   , contract
   , UnvariantF(..)
@@ -224,7 +224,7 @@ onMatch r k v =
 
 -- | Map over one case of a variant, putting the result back at the same label,
 -- | with a fallback function to handle the remaining cases.
-over
+overOne
   ∷ ∀ sym f g a b r1 r2 r3 r4
   . R.Cons sym f r1 r2
   ⇒ R.Cons sym g r4 r3
@@ -235,13 +235,13 @@ over
   → (VariantF r1 a → VariantF r3 b)
   → VariantF r2 a
   → VariantF r3 b
-over p f = on p (inj p <<< f)
+overOne p f = on p (inj p <<< f)
 
 -- | Map over several cases of a variant using a `Record` containing functions
 -- | for each case. Each case gets put back at the same label it was matched
 -- | at, i.e. its label in the record. Labels not found in the record are
 -- | handled using the fallback function.
-overMatch
+overSome
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . RL.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
@@ -254,7 +254,7 @@ overMatch
   → (VariantF r2 a → VariantF r3 b)
   → VariantF r1 a
   → VariantF r3 b
-overMatch r k v =
+overSome r k v =
   case coerceV v of
     VariantFRep v' | unsafeHas v'.type r →
       let
@@ -274,29 +274,38 @@ overMatch r k v =
   coerceR ∷ VariantF r1 a → VariantF r2 a
   coerceR = unsafeCoerce
 
--- | `expandOverMatch r k` is like `(map k >>> expand) # overMatch r` but with
+-- | Map over some labels (with access to the containers) and use `map f` for
+-- | the rest (just changing the index type). For example:
+-- |
+-- | ```purescript
+-- | over { label: \(Identity a) -> Just (show (a - 5)) } show
+-- |   :: forall r.
+-- |     VariantF ( label :: Identity | r ) Int ->
+-- |     VariantF ( label :: Maybe | r ) String
+-- | ```
+-- |
+-- | `over r f` is like `(map f >>> expand) # overSome r` but with
 -- | a more easily solved constraint (i.e. it can be solved once the type of
 -- | `r` is known).
-expandOverMatch
-  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
+over
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 a b
   . RL.RowToList r rl
   ⇒ VariantFMapCases rl ri ro a b
   ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
-  ⇒ R.Union ro r4 r3
   ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
   ⇒ Record r
   → (a → b)
   → VariantF r1 a
   → VariantF r3 b
-expandOverMatch r k = overMatch r (map k >>> unsafeExpand) where
+over r f = overSome r (map f >>> unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
 
 -- | Traverse over one case of a variant (in a functorial/monadic context `m`),
 -- | putting the result back at the same label, with a fallback function.
-trav
+traverseOne
   ∷ ∀ sym f g a b r1 r2 r3 r4 m
   . R.Cons sym f r1 r2
   ⇒ R.Cons sym g r4 r3
@@ -308,13 +317,13 @@ trav
   → (VariantF r1 a → m (VariantF r3 b))
   → VariantF r2 a
   → m (VariantF r3 b)
-trav p f = on p (map (inj p) <<< f)
+traverseOne p f = on p (map (inj p) <<< f)
 
 -- | Traverse over several cases of a variant using a `Record` containing
 -- | traversals. Each case gets put back at the same label it was matched
 -- | at, i.e. its label in the record. Labels not found in the record are
 -- | handled using the fallback function.
-travMatch
+traverseSome
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
   . RL.RowToList r rl
   ⇒ VariantFTravCases m rl ri ro a b
@@ -328,7 +337,7 @@ travMatch
   → (VariantF r2 a → m (VariantF r3 b))
   → VariantF r1 a
   → m (VariantF r3 b)
-travMatch r k v =
+traverseSome r k v =
   case coerceV v of
     VariantFRep v' | unsafeHas v'.type r →
       let
@@ -349,16 +358,20 @@ travMatch r k v =
   coerceR ∷ VariantF r1 a → VariantF r2 a
   coerceR = unsafeCoerce
 
--- | Expand after `travMatch`.
-expandTravMatch
-  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
+-- | Traverse over some labels (with access to the containers) and use
+-- | `travers f` for the rest (just changing the index type).
+-- |
+-- | `traverse r f` is like `(traverse f >>> expand) # traverseSome r` but with
+-- | a more easily solved constraint (i.e. it can be solved once the type of
+-- | `r` is known).
+traverse
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 a b m
   . RL.RowToList r rl
   ⇒ VariantFTravCases m rl ri ro a b
   ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
   ⇒ R.Union ri r2 r1
-  ⇒ R.Union ro r4 r3
   ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
   ⇒ Applicative m
   ⇒ TF.Traversable (VariantF r2)
@@ -366,7 +379,7 @@ expandTravMatch
   → (a → m b)
   → VariantF r1 a
   → m (VariantF r3 b)
-expandTravMatch r k = travMatch r (TF.traverse k >>> map unsafeExpand) where
+traverse r f = traverseSome r (TF.traverse f >>> map unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
 
 -- | Combinator for exhaustive pattern matching.

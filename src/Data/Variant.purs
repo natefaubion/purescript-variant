@@ -5,14 +5,14 @@ module Data.Variant
   , on
   , onMatch
   , over
+  , overOne
+  , overSome
   , case_
   , match
   , default
-  , overMatch
-  , expandOverMatch
-  , trav
-  , travMatch
-  , expandTravMatch
+  , traverse
+  , traverseOne
+  , traverseSome
   , expand
   , contract
   , Unvariant(..)
@@ -110,7 +110,7 @@ on p f g r =
 -- |   { foo: \foo -> "Foo: " <> foo
 -- |   , bar: \bar -> "Bar: " <> bar
 -- |   }
--- | ````
+-- | ```
 -- |
 -- | Polymorphic functions in records (such as `show` or `id`) can lead
 -- | to inference issues if not all polymorphic variables are specified
@@ -139,7 +139,7 @@ onMatch r k v =
 
 -- | Map over one case of a variant, putting the result back at the same label,
 -- | with a fallback function to handle the remaining cases.
-over
+overOne
   ∷ ∀ sym a b r1 r2 r3 r4
   . IsSymbol sym
   ⇒ R.Cons sym a r1 r2
@@ -149,13 +149,13 @@ over
   → (Variant r1 → Variant r3)
   → Variant r2
   → Variant r3
-over p f = on p (inj p <<< f)
+overOne p f = on p (inj p <<< f)
 
 -- | Map over several cases of a variant using a `Record` containing functions
 -- | for each case. Each case gets put back at the same label it was matched
 -- | at, i.e. its label in the record. Labels not found in the record are
 -- | handled using the fallback function.
-overMatch
+overSome
   ∷ ∀ r rl ri ro r1 r2 r3 r4
   . RL.RowToList r rl
   ⇒ VariantMapCases rl ri ro
@@ -165,7 +165,7 @@ overMatch
   → (Variant r2 → Variant r3)
   → Variant r1
   → Variant r3
-overMatch r k v =
+overSome r k v =
   case coerceV v of
     VariantRep v' | unsafeHas v'.type r →
       coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
@@ -181,24 +181,30 @@ overMatch r k v =
   coerceR ∷ Variant r1 → Variant r2
   coerceR = unsafeCoerce
 
--- | `expandOverMatch r` is like `expand # overMatch r` but with a more easily
+-- | Map over some labels and leave the rest unchanged. For example:
+-- |
+-- | ```purescript
+-- | over { label: show :: Int -> String }
+-- |   :: forall r. Variant ( label :: Int | r ) -> Variant ( label :: String | r )
+-- | ```
+-- |
+-- | `over r` is like `expand # overSome r` but with a more easily
 -- | solved constraint (i.e. it can be solved once the type of `r` is known).
-expandOverMatch
-  ∷ ∀ r rl ri ro r1 r2 r3 r4
+over
+  ∷ ∀ r rl ri ro r1 r2 r3
   . RL.RowToList r rl
   ⇒ VariantMapCases rl ri ro
   ⇒ R.Union ri r2 r1
-  ⇒ R.Union ro r4 r3
   ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
   ⇒ Record r
   → Variant r1
   → Variant r3
-expandOverMatch r = overMatch r unsafeExpand where
+over r = overSome r unsafeExpand where
   unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
 -- | Traverse over one case of a variant (in a functorial/monadic context `m`),
 -- | putting the result back at the same label, with a fallback function.
-trav
+traverseOne
   ∷ ∀ sym a b r1 r2 r3 r4 m
   . IsSymbol sym
   ⇒ R.Cons sym a r1 r2
@@ -209,13 +215,13 @@ trav
   → (Variant r1 → m (Variant r3))
   → Variant r2
   → m (Variant r3)
-trav p f = on p (map (inj p) <<< f)
+traverseOne p f = on p (map (inj p) <<< f)
 
 -- | Traverse over several cases of a variant using a `Record` containing
 -- | traversals. Each case gets put back at the same label it was matched
 -- | at, i.e. its label in the record. Labels not found in the record are
 -- | handled using the fallback function.
-travMatch
+traverseSome
   ∷ ∀ r rl ri ro r1 r2 r3 r4 m
   . RL.RowToList r rl
   ⇒ VariantTravCases m rl ri ro
@@ -226,7 +232,7 @@ travMatch
   → (Variant r2 → m (Variant r3))
   → Variant r1
   → m (Variant r3)
-travMatch r k v =
+traverseSome r k v =
   case coerceV v of
     VariantRep v' | unsafeHas v'.type r →
       unsafeGet v'.type r v'.value <#> \value ->
@@ -243,19 +249,19 @@ travMatch r k v =
   coerceR ∷ Variant r1 → Variant r2
   coerceR = unsafeCoerce
 
--- | Expand after `travMatch`.
-expandTravMatch
-  ∷ ∀ r rl ri ro r1 r2 r3 r4 m
+-- | Traverse over some labels and leave the rest unchanged.
+-- | (Implemented by expanding after `traverseSome`.)
+traverse
+  ∷ ∀ r rl ri ro r1 r2 r3 m
   . RL.RowToList r rl
   ⇒ VariantTravCases m rl ri ro
   ⇒ R.Union ri r2 r1
-  ⇒ R.Union ro r4 r3
   ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
   ⇒ Applicative m
   ⇒ Record r
   → Variant r1
   → m (Variant r3)
-expandTravMatch r = travMatch r (pure <<< unsafeExpand) where
+traverse r = traverseSome r (pure <<< unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
 -- | Combinator for exhaustive pattern matching.

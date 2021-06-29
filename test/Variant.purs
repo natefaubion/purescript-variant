@@ -5,7 +5,7 @@ import Prelude
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Symbol (reflectSymbol)
-import Data.Variant (Variant, on, onMatch, case_, default, expand, expandOverMatch, inj, prj, match, overMatch, contract, Unvariant(..), unvariant, revariant)
+import Data.Variant (Variant, on, onMatch, case_, default, expand, inj, prj, match, over, overSome, contract, Unvariant(..), unvariant, revariant)
 import Effect (Effect)
 import Record.Builder (build, modify, Builder)
 import Test.Assert (assert')
@@ -98,16 +98,16 @@ test = do
   assert' "match: baz" $ match' baz == "baz: true"
 
   let
-    overMatch' ∷ Variant TestVariants → Variant TestVariants'
-    overMatch' = overMatch
+    overSome' ∷ Variant TestVariants → Variant TestVariants'
+    overSome' = overSome
       { foo: \a → show a
       , baz: \a → show a
       } expand
 
-    expandOverMatch' ∷ forall r.
+    over' ∷ forall r.
       Variant ( foo ∷ Int, baz ∷ Boolean | r ) →
       Variant ( foo ∷ String, baz ∷ String | r )
-    expandOverMatch' = expandOverMatch
+    over' = over
       { foo: \a → show a
       , baz: \a → show a
       }
@@ -122,13 +122,13 @@ test = do
         { baz: \a → "baz: " <> a
         }
 
-  assert' "onMatch overMatch: foo" $ onMatch' (overMatch' foo) == "foo: 42"
-  assert' "onMatch overMatch: bar" $ onMatch' (overMatch' bar) == "bar: bar"
-  assert' "onMatch overMatch: baz" $ onMatch' (overMatch' baz) == "baz: true"
+  assert' "onMatch overSome: foo" $ onMatch' (overSome' foo) == "foo: 42"
+  assert' "onMatch overSome: bar" $ onMatch' (overSome' bar) == "bar: bar"
+  assert' "onMatch overSome: baz" $ onMatch' (overSome' baz) == "baz: true"
 
-  assert' "onMatch expandOverMatch: foo" $ onMatch' (expandOverMatch' foo) == "foo: 42"
-  assert' "onMatch expandOverMatch: bar" $ onMatch' (expandOverMatch' bar) == "bar: bar"
-  assert' "onMatch expandOverMatch: baz" $ onMatch' (expandOverMatch' baz) == "baz: true"
+  assert' "onMatch over: foo" $ onMatch' (over' foo) == "foo: 42"
+  assert' "onMatch over: bar" $ onMatch' (over' bar) == "bar: bar"
+  assert' "onMatch over: baz" $ onMatch' (over' baz) == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
