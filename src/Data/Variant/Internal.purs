@@ -6,6 +6,10 @@ module Data.Variant.Internal
   , class Contractable, contractWith
   , class VariantMatchCases
   , class VariantFMatchCases
+  , class VariantMapCases
+  , class VariantFMapCases
+  , class VariantTravCases
+  , class VariantFTravCases
   , lookup
   , lookupTag
   , lookupEq
@@ -67,6 +71,66 @@ instance variantFMatchCons
 
 instance variantFMatchNil
   ∷ VariantFMatchCases RL.Nil () a b
+
+class VariantMapCases (rl ∷ RL.RowList Type)
+  (ri ∷ Row Type) (ro ∷ Row Type)
+  | rl → ri ro
+
+instance variantMapCons
+  ∷ ( R.Cons sym a ri' ri
+    , R.Cons sym b ro' ro
+    , VariantMapCases rl ri' ro'
+    , TypeEquals k (a → b)
+    )
+  ⇒ VariantMapCases (RL.Cons sym k rl) ri ro
+
+instance variantMapNil
+  ∷ VariantMapCases RL.Nil () ()
+
+class VariantFMapCases (rl ∷ RL.RowList Type)
+  (ri ∷ Row (Type → Type)) (ro ∷ Row (Type → Type)) (a ∷ Type) (b ∷ Type)
+  | rl → ri ro
+
+instance variantFMapCons
+  ∷ ( R.Cons sym f ri' ri
+    , R.Cons sym g ro' ro
+    , VariantFMapCases rl ri' ro' a b
+    , TypeEquals k (f a → g b)
+    )
+  ⇒ VariantFMapCases (RL.Cons sym k rl) ri ro a b
+
+instance variantFMapNil
+  ∷ VariantFMapCases RL.Nil () () a b
+
+class VariantTravCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
+  (ri ∷ Row Type) (ro ∷ Row Type)
+  | rl → ri ro
+
+instance variantTravCons
+  ∷ ( R.Cons sym a ri' ri
+    , R.Cons sym b ro' ro
+    , VariantTravCases m rl ri' ro'
+    , TypeEquals k (a → m b)
+    )
+  ⇒ VariantTravCases m (RL.Cons sym k rl) ri ro
+
+instance variantTravNil
+  ∷ VariantTravCases m RL.Nil () ()
+
+class VariantFTravCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
+  (ri ∷ Row (Type → Type)) (ro ∷ Row (Type → Type)) (a ∷ Type) (b ∷ Type)
+  | rl → ri ro
+
+instance variantFTravCons
+  ∷ ( R.Cons sym f ri' ri
+    , R.Cons sym g ro' ro
+    , VariantFTravCases m rl ri' ro' a b
+    , TypeEquals k (f a → m (g b))
+    )
+  ⇒ VariantFTravCases m (RL.Cons sym k rl) ri ro a b
+
+instance variantFTravNil
+  ∷ VariantFTravCases m RL.Nil () () a b
 
 foreign import data VariantCase ∷ Type
 

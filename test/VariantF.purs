@@ -3,16 +3,21 @@ module Test.VariantF where
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Functor.Variant (VariantF, case_, contract, default, inj, match, on, onMatch, prj, revariantF, unvariantF)
+import Data.Functor.Variant (VariantF, case_, contract, default, expand, inj, match, on, onMatch, over, overSome, prj, revariantF, unvariantF)
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Test.Assert (assert')
-import Type.Proxy(Proxy(..))
+import Type.Proxy (Proxy(..))
 
 type TestVariants =
   ( foo ∷ Maybe
+  , bar ∷ Tuple String
+  , baz ∷ Either String
+  )
+type TestVariants' =
+  ( foo ∷ Either String
   , bar ∷ Tuple String
   , baz ∷ Either String
   )
@@ -107,9 +112,29 @@ test = do
     map'' ∷ VariantF TestVariants Int → String
     map'' = map (_ + 2) >>> map'
 
+    overSome' ∷ VariantF TestVariants Int → VariantF TestVariants Int
+    overSome' = overSome
+      { baz: \(_ ∷ Either String Int) → Right 20
+      } expand
+
+    over' ∷ forall r.
+      VariantF (baz ∷ Either String | r) Int →
+      VariantF (baz ∷ Either String | r) Int
+    over' = over
+      { baz: \(_ ∷ Either String Int) → Right 20
+      } identity
+
   assert' "map: foo" $ map'' foo == "foo: (Just 44)"
   assert' "map: bar" $ map'' bar == "bar: (Tuple \"bar\" 44)"
   assert' "map: baz" $ map'' baz == "baz: (Left \"baz\")"
+
+  assert' "overSome: foo" $ map'' (overSome' foo) == "foo: (Just 44)"
+  assert' "overSome: bar" $ map'' (overSome' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "overSome: baz" $ map'' (overSome' baz) == "baz: (Right 22)"
+
+  assert' "over: foo" $ map'' (over' foo) == "foo: (Just 44)"
+  assert' "over: bar" $ map'' (over' bar) == "bar: (Tuple \"bar\" 44)"
+  assert' "over: baz" $ map'' (over' baz) == "baz: (Right 22)"
 
   assert' "contract: pass"
     $ isJust
@@ -119,4 +144,4 @@ test = do
     $ L.null
     $ (contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ Maybe) Int))
 
-  assert' "show" $ show (foo :: VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""
+  assert' "show" $ show (foo ∷ VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""
