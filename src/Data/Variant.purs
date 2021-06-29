@@ -107,15 +107,15 @@ on p f g r =
 -- |
 -- | ```purescript
 -- | onMatch
--- |   { foo: \foo → "Foo: " <> foo
--- |   , bar: \bar → "Bar: " <> bar
+-- |   { foo: \foo -> "Foo: " <> foo
+-- |   , bar: \bar -> "Bar: " <> bar
 -- |   }
 -- | ````
 -- |
 -- | Polymorphic functions in records (such as `show` or `id`) can lead
 -- | to inference issues if not all polymorphic variables are specified
 -- | in usage. When in doubt, label methods with specific types, such as
--- | `show :: Int → String`, or give the whole record an appropriate type.
+-- | `show :: Int -> String`, or give the whole record an appropriate type.
 onMatch
   ∷ ∀ rl r r1 r2 r3 b
   . RL.RowToList r rl
@@ -255,7 +255,7 @@ expandTravMatch r = travMatch r (pure <<< unsafeExpand) where
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
--- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) → String
+-- | caseFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
 -- | caseFn = case_
 -- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> show foo)
 -- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> bar)
@@ -267,11 +267,11 @@ case_ r = unsafeCrashWith case unsafeCoerce r of
 
 -- | Combinator for exhaustive pattern matching using an `onMatch` case record.
 -- | ```purescript
--- | matchFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) → String
+-- | matchFn :: Variant (foo :: Int, bar :: String, baz :: Boolean) -> String
 -- | matchFn = match
--- |   { foo: \foo → "Foo: " <> show foo
--- |   , bar: \bar → "Bar: " <> bar
--- |   , baz: \baz → "Baz: " <> show baz
+-- |   { foo: \foo -> "Foo: " <> show foo
+-- |   , bar: \bar -> "Bar: " <> bar
+-- |   , baz: \baz -> "Baz: " <> show baz
 -- |   }
 -- | ```
 match
@@ -286,7 +286,7 @@ match r = case_ # onMatch r
 
 -- | Combinator for partial matching with a default value in case of failure.
 -- | ```purescript
--- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) → String
+-- | caseFn :: forall r. Variant (foo :: Int, bar :: String | r) -> String
 -- | caseFn = default "No match"
 -- |  # on (Proxy :: Proxy "foo") (\foo -> "Foo: " <> show foo)
 -- |  # on (Proxy :: Proxy "bar") (\bar -> "Bar: " <> bar)
