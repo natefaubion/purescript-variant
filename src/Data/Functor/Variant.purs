@@ -222,6 +222,8 @@ onMatch r k v =
   coerceR ∷ VariantF r3 a → VariantF r2 a
   coerceR = unsafeCoerce
 
+-- | Map over one case of a variant, putting the result back at the same label,
+-- | with a fallback function to handle the remaining cases.
 over
   ∷ ∀ sym f g a b r1 r2 r3 r4
   . R.Cons sym f r1 r2
@@ -235,6 +237,10 @@ over
   → VariantF r3 b
 over p f = on p (inj p <<< f)
 
+-- | Map over several cases of a variant using a `Record` containing functions
+-- | for each case. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
 overMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
   . RL.RowToList r rl
@@ -288,6 +294,8 @@ expandOverMatch
 expandOverMatch r k = overMatch r (map k >>> unsafeExpand) where
   unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
 
+-- | Traverse over one case of a variant (in a functorial/monadic context `m`),
+-- | putting the result back at the same label, with a fallback function.
 trav
   ∷ ∀ sym f g a b r1 r2 r3 r4 m
   . R.Cons sym f r1 r2
@@ -302,6 +310,10 @@ trav
   → m (VariantF r3 b)
 trav p f = on p (map (inj p) <<< f)
 
+-- | Traverse over several cases of a variant using a `Record` containing
+-- | traversals. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
 travMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
   . RL.RowToList r rl
@@ -337,6 +349,7 @@ travMatch r k v =
   coerceR ∷ VariantF r1 a → VariantF r2 a
   coerceR = unsafeCoerce
 
+-- | Expand after `travMatch`.
 expandTravMatch
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
   . RL.RowToList r rl

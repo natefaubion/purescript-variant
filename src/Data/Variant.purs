@@ -137,7 +137,8 @@ onMatch r k v =
   coerceR ∷ Variant r3 → Variant r2
   coerceR = unsafeCoerce
 
--- | Map over one case of a variant, putting the result back at the same label.
+-- | Map over one case of a variant, putting the result back at the same label,
+-- | with a fallback function to handle the remaining cases.
 over
   ∷ ∀ sym a b r1 r2 r3 r4
   . IsSymbol sym
@@ -152,7 +153,8 @@ over p f = on p (inj p <<< f)
 
 -- | Map over several cases of a variant using a `Record` containing functions
 -- | for each case. Each case gets put back at the same label it was matched
--- | at, i.e. its label in the record.
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
 overMatch
   ∷ ∀ r rl ri ro r1 r2 r3 r4
   . RL.RowToList r rl
@@ -194,7 +196,8 @@ expandOverMatch
 expandOverMatch r = overMatch r unsafeExpand where
   unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
--- | Traverse over one case of a variant, putting the result back at the same label.
+-- | Traverse over one case of a variant (in a functorial/monadic context `m`),
+-- | putting the result back at the same label, with a fallback function.
 trav
   ∷ ∀ sym a b r1 r2 r3 r4 m
   . IsSymbol sym
@@ -208,9 +211,10 @@ trav
   → m (Variant r3)
 trav p f = on p (map (inj p) <<< f)
 
--- | Map over several cases of a variant using a `Record` containing functions
--- | for each case. Each case gets put back at the same label it was matched
--- | at, i.e. its label in the record.
+-- | Traverse over several cases of a variant using a `Record` containing
+-- | traversals. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
 travMatch
   ∷ ∀ r rl ri ro r1 r2 r3 r4 m
   . RL.RowToList r rl
@@ -239,6 +243,7 @@ travMatch r k v =
   coerceR ∷ Variant r1 → Variant r2
   coerceR = unsafeCoerce
 
+-- | Expand after `travMatch`.
 expandTravMatch
   ∷ ∀ r rl ri ro r1 r2 r3 r4 m
   . RL.RowToList r rl
