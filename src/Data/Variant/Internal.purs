@@ -46,7 +46,7 @@ newtype VariantRep a = VariantRep
   , value ∷ a
   }
 
-class VariantMatchCases :: RL.RowList Type → Row Type → Type → Constraint
+class VariantMatchCases :: RL.RowList Type -> Row Type -> Type -> Constraint
 class VariantMatchCases rl vo b | rl → vo b
 
 instance variantMatchCons
@@ -59,7 +59,7 @@ instance variantMatchCons
 instance variantMatchNil
   ∷ VariantMatchCases RL.Nil () b
 
-class VariantFMatchCases :: RL.RowList Type → Row (Type → Type) → Type → Type → Constraint
+class VariantFMatchCases :: RL.RowList Type -> Row (Type -> Type) -> Type -> Type -> Constraint
 class VariantFMatchCases rl vo a b | rl → vo a b
 
 instance variantFMatchCons
@@ -136,7 +136,7 @@ foreign import data VariantCase ∷ Type
 
 foreign import data VariantFCase ∷ Type → Type
 
-class VariantTags :: forall k. RL.RowList k → Constraint
+class VariantTags :: forall k. RL.RowList k -> Constraint
 class VariantTags rl where
   variantTags ∷ forall proxy. proxy rl → L.List String
 
@@ -308,7 +308,7 @@ lookupToEnum = go
       | otherwise → go (ix - d.cardinality) ts ds
     _, _ → Nothing
 
-class Contractable :: forall k. Row k → Row k → Constraint
+class Contractable :: forall k. Row k -> Row k -> Constraint
 class Contractable gt lt where
   contractWith ∷ ∀ proxy1 proxy2 f a. Alternative f ⇒ proxy1 gt → proxy2 lt → String → a → f a
 

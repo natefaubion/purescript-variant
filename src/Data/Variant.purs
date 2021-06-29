@@ -359,10 +359,10 @@ unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
   coerce = unsafeCoerce
 
 -- | Reconstructs a Variant given an Unvariant eliminator.
-revariant ∷ ∀ r. Unvariant r → Variant r
+revariant ∷ ∀ r. Unvariant r -> Variant r
 revariant (Unvariant f) = f inj
 
-class VariantEqs :: RL.RowList Type → Constraint
+class VariantEqs :: RL.RowList Type -> Constraint
 class VariantEqs rl where
   variantEqs ∷ forall proxy. proxy rl → L.List (VariantCase → VariantCase → Boolean)
 
@@ -386,7 +386,7 @@ instance eqVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq
     in
       lookupEq tags eqs c1 c2
 
-class VariantBounded :: RL.RowList Type → Constraint
+class VariantBounded :: RL.RowList Type -> Constraint
 class VariantBounded rl where
   variantBounded ∷ forall proxy. proxy rl → L.List (BoundedDict VariantCase)
 
@@ -422,7 +422,7 @@ instance boundedVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, V
     in
       coerce $ VariantRep $ lookupFirst "bottom" _.bottom tags dicts
 
-class VariantBoundedEnums :: RL.RowList Type → Constraint
+class VariantBoundedEnums :: RL.RowList Type -> Constraint
 class VariantBounded rl ⇐ VariantBoundedEnums rl where
   variantBoundedEnums ∷ forall proxy. proxy rl → L.List (BoundedEnumDict VariantCase)
 
@@ -494,7 +494,7 @@ instance boundedEnumVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs r
     in
       coerceV $ lookupToEnum n tags dicts
 
-class VariantOrds :: RL.RowList Type → Constraint
+class VariantOrds :: RL.RowList Type -> Constraint
 class VariantOrds rl where
   variantOrds ∷ forall proxy. proxy rl → L.List (VariantCase → VariantCase → Ordering)
 
@@ -518,7 +518,7 @@ instance ordVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, Varia
     in
       lookupOrd tags ords c1 c2
 
-class VariantShows :: RL.RowList Type → Constraint
+class VariantShows :: RL.RowList Type -> Constraint
 class VariantShows rl where
   variantShows ∷ forall proxy. proxy rl → L.List (VariantCase → String)
 
