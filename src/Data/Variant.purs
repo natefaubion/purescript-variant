@@ -34,8 +34,8 @@ import Data.Enum (class Enum, pred, succ, class BoundedEnum, Cardinality(..), fr
 import Data.List as L
 import Data.Maybe (Maybe)
 import Data.Symbol (class IsSymbol, reflectSymbol)
-import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases, class VariantTags, class VariantTravCases, BoundedDict, BoundedEnumDict, VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases, class VariantTraverseCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases, class VariantTags, class VariantTraverseCases, BoundedDict, BoundedEnumDict, VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
@@ -224,7 +224,7 @@ traverseOne p f = on p (map (inj p) <<< f)
 traverseSome
   ∷ ∀ r rl ri ro r1 r2 r3 r4 m
   . RL.RowToList r rl
-  ⇒ VariantTravCases m rl ri ro
+  ⇒ VariantTraverseCases m rl ri ro
   ⇒ R.Union ri r2 r1
   ⇒ R.Union ro r4 r3
   ⇒ Functor m
@@ -254,7 +254,7 @@ traverseSome r k v =
 traverse
   ∷ ∀ r rl ri ro r1 r2 r3 m
   . RL.RowToList r rl
-  ⇒ VariantTravCases m rl ri ro
+  ⇒ VariantTraverseCases m rl ri ro
   ⇒ R.Union ri r2 r1
   ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
   ⇒ Applicative m

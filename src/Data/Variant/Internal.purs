@@ -8,8 +8,8 @@ module Data.Variant.Internal
   , class VariantFMatchCases
   , class VariantMapCases
   , class VariantFMapCases
-  , class VariantTravCases
-  , class VariantFTravCases
+  , class VariantTraverseCases
+  , class VariantFTraverseCases
   , lookup
   , lookupTag
   , lookupEq
@@ -102,35 +102,35 @@ instance variantFMapCons
 instance variantFMapNil
   ∷ VariantFMapCases RL.Nil () () a b
 
-class VariantTravCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
+class VariantTraverseCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
   (ri ∷ Row Type) (ro ∷ Row Type)
   | rl → ri ro
 
 instance variantTravCons
   ∷ ( R.Cons sym a ri' ri
     , R.Cons sym b ro' ro
-    , VariantTravCases m rl ri' ro'
+    , VariantTraverseCases m rl ri' ro'
     , TypeEquals k (a → m b)
     )
-  ⇒ VariantTravCases m (RL.Cons sym k rl) ri ro
+  ⇒ VariantTraverseCases m (RL.Cons sym k rl) ri ro
 
 instance variantTravNil
-  ∷ VariantTravCases m RL.Nil () ()
+  ∷ VariantTraverseCases m RL.Nil () ()
 
-class VariantFTravCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
+class VariantFTraverseCases (m ∷ Type → Type) (rl ∷ RL.RowList Type)
   (ri ∷ Row (Type → Type)) (ro ∷ Row (Type → Type)) (a ∷ Type) (b ∷ Type)
   | rl → ri ro
 
 instance variantFTravCons
   ∷ ( R.Cons sym f ri' ri
     , R.Cons sym g ro' ro
-    , VariantFTravCases m rl ri' ro' a b
+    , VariantFTraverseCases m rl ri' ro' a b
     , TypeEquals k (f a → m (g b))
     )
-  ⇒ VariantFTravCases m (RL.Cons sym k rl) ri ro a b
+  ⇒ VariantFTraverseCases m (RL.Cons sym k rl) ri ro a b
 
 instance variantFTravNil
-  ∷ VariantFTravCases m RL.Nil () () a b
+  ∷ VariantFTraverseCases m RL.Nil () () a b
 
 foreign import data VariantCase ∷ Type
 

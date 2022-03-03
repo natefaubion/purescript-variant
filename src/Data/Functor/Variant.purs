@@ -37,7 +37,7 @@ import Data.List as L
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
 import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantFMapCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantFMapCases, class VariantFMatchCases, class VariantFTravCases, class VariantTags, VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantFMapCases, class VariantFMatchCases, class VariantFTraverseCases, class VariantTags, VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
@@ -326,7 +326,7 @@ traverseOne p f = on p (map (inj p) <<< f)
 traverseSome
   ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
   . RL.RowToList r rl
-  ⇒ VariantFTravCases m rl ri ro a b
+  ⇒ VariantFTraverseCases m rl ri ro a b
   ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
@@ -359,7 +359,7 @@ traverseSome r k v =
   coerceR = unsafeCoerce
 
 -- | Traverse over some labels (with access to the containers) and use
--- | `travers f` for the rest (just changing the index type).
+-- | `traverse f` for the rest (just changing the index type).
 -- |
 -- | `traverse r f` is like `(traverse f >>> expand) # traverseSome r` but with
 -- | a more easily solved constraint (i.e. it can be solved once the type of
@@ -367,7 +367,7 @@ traverseSome r k v =
 traverse
   ∷ ∀ r rl rlo ri ro r1 r2 r3 a b m
   . RL.RowToList r rl
-  ⇒ VariantFTravCases m rl ri ro a b
+  ⇒ VariantFTraverseCases m rl ri ro a b
   ⇒ RL.RowToList ro rlo
   ⇒ VariantTags rlo
   ⇒ VariantFMaps rlo
