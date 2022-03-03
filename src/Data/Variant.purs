@@ -4,9 +4,15 @@ module Data.Variant
   , prj
   , on
   , onMatch
+  , over
+  , overOne
+  , overSome
   , case_
   , match
   , default
+  , traverse
+  , traverseOne
+  , traverseSome
   , expand
   , contract
   , Unvariant(..)
@@ -28,8 +34,8 @@ import Data.Enum (class Enum, pred, succ, class BoundedEnum, Cardinality(..), fr
 import Data.List as L
 import Data.Maybe (Maybe)
 import Data.Symbol (class IsSymbol, reflectSymbol)
-import Data.Variant.Internal (class Contractable, class VariantMatchCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantMatchCases, class VariantTags, BoundedDict, BoundedEnumDict, VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases, class VariantTraverseCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantMapCases, class VariantMatchCases, class VariantTags, class VariantTraverseCases, BoundedDict, BoundedEnumDict, VariantCase, VariantRep(..), contractWith, lookup, lookupCardinality, lookupEq, lookupFirst, lookupFromEnum, lookupLast, lookupOrd, lookupPred, lookupSucc, lookupToEnum, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
@@ -104,7 +110,7 @@ on p f g r =
 -- |   { foo: \foo -> "Foo: " <> foo
 -- |   , bar: \bar -> "Bar: " <> bar
 -- |   }
--- | ````
+-- | ```
 -- |
 -- | Polymorphic functions in records (such as `show` or `id`) can lead
 -- | to inference issues if not all polymorphic variables are specified
@@ -130,6 +136,133 @@ onMatch r k v =
 
   coerceR ∷ Variant r3 → Variant r2
   coerceR = unsafeCoerce
+
+-- | Map over one case of a variant, putting the result back at the same label,
+-- | with a fallback function to handle the remaining cases.
+overOne
+  ∷ ∀ sym a b r1 r2 r3 r4
+  . IsSymbol sym
+  ⇒ R.Cons sym a r1 r2
+  ⇒ R.Cons sym b r4 r3
+  ⇒ Proxy sym
+  → (a → b)
+  → (Variant r1 → Variant r3)
+  → Variant r2
+  → Variant r3
+overOne p f = on p (inj p <<< f)
+
+-- | Map over several cases of a variant using a `Record` containing functions
+-- | for each case. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
+overSome
+  ∷ ∀ r rl ri ro r1 r2 r3 r4
+  . RL.RowToList r rl
+  ⇒ VariantMapCases rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Record r
+  → (Variant r2 → Variant r3)
+  → Variant r1
+  → Variant r3
+overSome r k v =
+  case coerceV v of
+    VariantRep v' | unsafeHas v'.type r →
+      coerceV' (VariantRep { type: v'.type, value: unsafeGet v'.type r v'.value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ a. Variant r1 → VariantRep a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ a. VariantRep a → Variant r3
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ Variant r1 → Variant r2
+  coerceR = unsafeCoerce
+
+-- | Map over some labels and leave the rest unchanged. For example:
+-- |
+-- | ```purescript
+-- | over { label: show :: Int -> String }
+-- |   :: forall r. Variant ( label :: Int | r ) -> Variant ( label :: String | r )
+-- | ```
+-- |
+-- | `over r` is like `expand # overSome r` but with a more easily
+-- | solved constraint (i.e. it can be solved once the type of `r` is known).
+over
+  ∷ ∀ r rl ri ro r1 r2 r3
+  . RL.RowToList r rl
+  ⇒ VariantMapCases rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Record r
+  → Variant r1
+  → Variant r3
+over r = overSome r unsafeExpand where
+  unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
+
+-- | Traverse over one case of a variant (in a functorial/monadic context `m`),
+-- | putting the result back at the same label, with a fallback function.
+traverseOne
+  ∷ ∀ sym a b r1 r2 r3 r4 m
+  . IsSymbol sym
+  ⇒ R.Cons sym a r1 r2
+  ⇒ R.Cons sym b r4 r3
+  ⇒ Functor m
+  ⇒ Proxy sym
+  → (a → m b)
+  → (Variant r1 → m (Variant r3))
+  → Variant r2
+  → m (Variant r3)
+traverseOne p f = on p (map (inj p) <<< f)
+
+-- | Traverse over several cases of a variant using a `Record` containing
+-- | traversals. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
+traverseSome
+  ∷ ∀ r rl ri ro r1 r2 r3 r4 m
+  . RL.RowToList r rl
+  ⇒ VariantTraverseCases m rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Functor m
+  ⇒ Record r
+  → (Variant r2 → m (Variant r3))
+  → Variant r1
+  → m (Variant r3)
+traverseSome r k v =
+  case coerceV v of
+    VariantRep v' | unsafeHas v'.type r →
+      unsafeGet v'.type r v'.value <#> \value ->
+        coerceV' (VariantRep { type: v'.type, value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ a. Variant r1 → VariantRep a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ a. VariantRep a → Variant r3
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ Variant r1 → Variant r2
+  coerceR = unsafeCoerce
+
+-- | Traverse over some labels and leave the rest unchanged.
+-- | (Implemented by expanding after `traverseSome`.)
+traverse
+  ∷ ∀ r rl ri ro r1 r2 r3 m
+  . RL.RowToList r rl
+  ⇒ VariantTraverseCases m rl ri ro
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Applicative m
+  ⇒ Record r
+  → Variant r1
+  → m (Variant r3)
+traverse r = traverseSome r (pure <<< unsafeExpand) where
+  unsafeExpand = unsafeCoerce ∷ Variant r2 → Variant r3
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript

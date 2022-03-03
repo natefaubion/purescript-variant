@@ -4,9 +4,15 @@ module Data.Functor.Variant
   , prj
   , on
   , onMatch
+  , over
+  , overOne
+  , overSome
   , case_
   , match
   , default
+  , traverse
+  , traverseOne
+  , traverseSome
   , expand
   , contract
   , UnvariantF(..)
@@ -14,6 +20,7 @@ module Data.Functor.Variant
   , unvariantF
   , revariantF
   , class VariantFShows, variantFShows
+  , class VariantFMaps, variantFMaps, Mapper
   , class TraversableVFRL
   , class FoldableVFRL
   , traverseVFRL
@@ -29,19 +36,20 @@ import Control.Alternative (class Alternative, empty)
 import Data.List as L
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Traversable as TF
-import Data.Variant.Internal (class Contractable, class VariantFMatchCases) as Exports
-import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantTags, VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
+import Data.Variant.Internal (class Contractable, class VariantFMatchCases, class VariantFMapCases) as Exports
+import Data.Variant.Internal (class Contractable, class VariantFMapCases, class VariantFMatchCases, class VariantFTraverseCases, class VariantTags, VariantFCase, VariantCase, contractWith, lookup, unsafeGet, unsafeHas, variantTags)
 import Partial.Unsafe (unsafeCrashWith)
 import Prim.Row as R
 import Prim.RowList as RL
-import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
+
+newtype Mapper f = Mapper (forall a b. (a → b) → f a → f b)
 
 newtype VariantFRep f a = VariantFRep
   { type ∷ String
   , value ∷ f a
-  , map ∷ ∀ x y. (x → y) → f x → f y
+  , map ∷ Mapper f
   }
 
 data UnknownF :: Type -> Type
@@ -55,7 +63,7 @@ instance functorVariantF ∷ Functor (VariantF r) where
     case coerceY a of
       VariantFRep v → coerceV $ VariantFRep
         { type: v.type
-        , value: v.map f v.value
+        , value: case v.map of Mapper m → m f v.value
         , map: v.map
         }
     where
@@ -133,7 +141,7 @@ inj
   ⇒ proxy sym
   → f a
   → VariantF r2 a
-inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map }
+inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map: Mapper map }
   where
   coerceV ∷ VariantFRep f a → VariantF r2 a
   coerceV = unsafeCoerce
@@ -213,6 +221,166 @@ onMatch r k v =
 
   coerceR ∷ VariantF r3 a → VariantF r2 a
   coerceR = unsafeCoerce
+
+-- | Map over one case of a variant, putting the result back at the same label,
+-- | with a fallback function to handle the remaining cases.
+overOne
+  ∷ ∀ sym f g a b r1 r2 r3 r4
+  . R.Cons sym f r1 r2
+  ⇒ R.Cons sym g r4 r3
+  ⇒ IsSymbol sym
+  ⇒ Functor g
+  ⇒ Proxy sym
+  → (f a → g b)
+  → (VariantF r1 a → VariantF r3 b)
+  → VariantF r2 a
+  → VariantF r3 b
+overOne p f = on p (inj p <<< f)
+
+-- | Map over several cases of a variant using a `Record` containing functions
+-- | for each case. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
+overSome
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b
+  . RL.RowToList r rl
+  ⇒ VariantFMapCases rl ri ro a b
+  ⇒ RL.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Record r
+  → (VariantF r2 a → VariantF r3 b)
+  → VariantF r1 a
+  → VariantF r3 b
+overSome r k v =
+  case coerceV v of
+    VariantFRep v' | unsafeHas v'.type r →
+      let
+        tags = variantTags (Proxy ∷ Proxy rlo)
+        maps = variantFMaps (Proxy ∷ Proxy rlo)
+        map = lookup "map" v'.type tags maps
+      in coerceV' (VariantFRep { type: v'.type, map, value: unsafeGet v'.type r v'.value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ f. VariantF r1 a → VariantFRep f a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ g. VariantFRep g b → VariantF r3 b
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ VariantF r1 a → VariantF r2 a
+  coerceR = unsafeCoerce
+
+-- | Map over some labels (with access to the containers) and use `map f` for
+-- | the rest (just changing the index type). For example:
+-- |
+-- | ```purescript
+-- | over { label: \(Identity a) -> Just (show (a - 5)) } show
+-- |   :: forall r.
+-- |     VariantF ( label :: Identity | r ) Int ->
+-- |     VariantF ( label :: Maybe | r ) String
+-- | ```
+-- |
+-- | `over r f` is like `(map f >>> expand) # overSome r` but with
+-- | a more easily solved constraint (i.e. it can be solved once the type of
+-- | `r` is known).
+over
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 a b
+  . RL.RowToList r rl
+  ⇒ VariantFMapCases rl ri ro a b
+  ⇒ RL.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Record r
+  → (a → b)
+  → VariantF r1 a
+  → VariantF r3 b
+over r f = overSome r (map f >>> unsafeExpand) where
+  unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
+
+-- | Traverse over one case of a variant (in a functorial/monadic context `m`),
+-- | putting the result back at the same label, with a fallback function.
+traverseOne
+  ∷ ∀ sym f g a b r1 r2 r3 r4 m
+  . R.Cons sym f r1 r2
+  ⇒ R.Cons sym g r4 r3
+  ⇒ IsSymbol sym
+  ⇒ Functor g
+  ⇒ Functor m
+  ⇒ Proxy sym
+  → (f a → m (g b))
+  → (VariantF r1 a → m (VariantF r3 b))
+  → VariantF r2 a
+  → m (VariantF r3 b)
+traverseOne p f = on p (map (inj p) <<< f)
+
+-- | Traverse over several cases of a variant using a `Record` containing
+-- | traversals. Each case gets put back at the same label it was matched
+-- | at, i.e. its label in the record. Labels not found in the record are
+-- | handled using the fallback function.
+traverseSome
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 r4 a b m
+  . RL.RowToList r rl
+  ⇒ VariantFTraverseCases m rl ri ro a b
+  ⇒ RL.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r4 r3
+  ⇒ Functor m
+  ⇒ Record r
+  → (VariantF r2 a → m (VariantF r3 b))
+  → VariantF r1 a
+  → m (VariantF r3 b)
+traverseSome r k v =
+  case coerceV v of
+    VariantFRep v' | unsafeHas v'.type r →
+      let
+        tags = variantTags (Proxy ∷ Proxy rlo)
+        maps = variantFMaps (Proxy ∷ Proxy rlo)
+        map = lookup "map" v'.type tags maps
+      in unsafeGet v'.type r v'.value <#> \value ->
+          coerceV' (VariantFRep { type: v'.type, map, value })
+    _ → k (coerceR v)
+
+  where
+  coerceV ∷ ∀ f. VariantF r1 a → VariantFRep f a
+  coerceV = unsafeCoerce
+
+  coerceV' ∷ ∀ g. VariantFRep g b → VariantF r3 b
+  coerceV' = unsafeCoerce
+
+  coerceR ∷ VariantF r1 a → VariantF r2 a
+  coerceR = unsafeCoerce
+
+-- | Traverse over some labels (with access to the containers) and use
+-- | `traverse f` for the rest (just changing the index type).
+-- |
+-- | `traverse r f` is like `(traverse f >>> expand) # traverseSome r` but with
+-- | a more easily solved constraint (i.e. it can be solved once the type of
+-- | `r` is known).
+traverse
+  ∷ ∀ r rl rlo ri ro r1 r2 r3 a b m
+  . RL.RowToList r rl
+  ⇒ VariantFTraverseCases m rl ri ro a b
+  ⇒ RL.RowToList ro rlo
+  ⇒ VariantTags rlo
+  ⇒ VariantFMaps rlo
+  ⇒ R.Union ri r2 r1
+  ⇒ R.Union ro r2 r3 -- this is "backwards" for `expand`, but still safe
+  ⇒ Applicative m
+  ⇒ TF.Traversable (VariantF r2)
+  ⇒ Record r
+  → (a → m b)
+  → VariantF r1 a
+  → m (VariantF r3 b)
+traverse r f = traverseSome r (TF.traverse f >>> map unsafeExpand) where
+  unsafeExpand = unsafeCoerce ∷ VariantF r2 b → VariantF r3 b
 
 -- | Combinator for exhaustive pattern matching.
 -- | ```purescript
@@ -320,7 +488,7 @@ unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
     . UnvariantF' r a x
     → { reflectSymbol ∷ proxy "" → String }
     → {}
-    → { map ∷ ∀ a b. (a → b) → UnknownF a → UnknownF b }
+    → { map ∷ Mapper UnknownF }
     → proxy ""
     → UnknownF Unit
     → x
@@ -337,7 +505,7 @@ class VariantFShows rl x where
 instance showVariantFNil ∷ VariantFShows RL.Nil x where
   variantFShows _ _ = L.Nil
 
-instance showVariantFCons ∷ (VariantFShows rs x, TypeEquals a f, Show (f x), Show x) ⇒ VariantFShows (RL.Cons sym a rs) x where
+instance showVariantFCons ∷ (VariantFShows rs x, Show (f x), Show x) ⇒ VariantFShows (RL.Cons sym f rs) x where
   variantFShows _ p =
     L.Cons (coerceShow show) (variantFShows (Proxy ∷ Proxy rs) p)
     where
@@ -353,3 +521,16 @@ instance showVariantF ∷ (RL.RowToList r rl, VariantTags rl, VariantFShows rl a
       body = lookup "show" v.type tags shows (unsafeCoerce v.value ∷ VariantCase)
     in
       "(inj @" <> show v.type <> " " <> body <> ")"
+
+class VariantFMaps (rl ∷ RL.RowList (Type → Type)) where
+  variantFMaps ∷ Proxy rl → L.List (Mapper VariantFCase)
+
+instance mapVariantFNil ∷ VariantFMaps RL.Nil where
+  variantFMaps _ = L.Nil
+
+instance mapVariantFCons ∷ (VariantFMaps rs, Functor f) ⇒ VariantFMaps (RL.Cons sym f rs) where
+  variantFMaps _ =
+    L.Cons (coerceMap (Mapper map)) (variantFMaps (Proxy ∷ Proxy rs))
+    where
+    coerceMap ∷ Mapper f → Mapper VariantFCase
+    coerceMap = unsafeCoerce

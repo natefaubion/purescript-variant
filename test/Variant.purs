@@ -5,7 +5,7 @@ import Prelude
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust)
 import Data.Symbol (reflectSymbol)
-import Data.Variant (Variant, on, onMatch, case_, default, inj, prj, match, contract, Unvariant(..), unvariant, revariant)
+import Data.Variant (Variant, on, onMatch, case_, default, expand, inj, prj, match, over, overSome, contract, Unvariant(..), unvariant, revariant)
 import Effect (Effect)
 import Record.Builder (build, modify, Builder)
 import Test.Assert (assert')
@@ -15,6 +15,12 @@ type TestVariants =
   ( foo ∷ Int
   , bar ∷ String
   , baz ∷ Boolean
+  )
+
+type TestVariants' =
+  ( foo ∷ String
+  , bar ∷ String
+  , baz ∷ String
   )
 
 _foo ∷ Proxy "foo"
@@ -92,19 +98,37 @@ test = do
   assert' "match: baz" $ match' baz == "baz: true"
 
   let
-    onMatch' ∷ Variant TestVariants → String
+    overSome' ∷ Variant TestVariants → Variant TestVariants'
+    overSome' = overSome
+      { foo: \a → show a
+      , baz: \a → show a
+      } expand
+
+    over' ∷ forall r.
+      Variant ( foo ∷ Int, baz ∷ Boolean | r ) →
+      Variant ( foo ∷ String, baz ∷ String | r )
+    over' = over
+      { foo: \a → show a
+      , baz: \a → show a
+      }
+
+    onMatch' ∷ Variant TestVariants' → String
     onMatch' = case_
       # onMatch
-        { foo: \a → "foo: " <> show a
+        { foo: \a → "foo: " <> a
         , bar: \a → "bar: " <> a
         }
       # onMatch
-        { baz: \a → "baz: " <> show a
+        { baz: \a → "baz: " <> a
         }
 
-  assert' "onMatch: foo" $ onMatch' foo == "foo: 42"
-  assert' "onMatch: bar" $ onMatch' bar == "bar: bar"
-  assert' "onMatch: baz" $ onMatch' baz == "baz: true"
+  assert' "onMatch overSome: foo" $ onMatch' (overSome' foo) == "foo: 42"
+  assert' "onMatch overSome: bar" $ onMatch' (overSome' bar) == "bar: bar"
+  assert' "onMatch overSome: baz" $ onMatch' (overSome' baz) == "baz: true"
+
+  assert' "onMatch over: foo" $ onMatch' (over' foo) == "foo: 42"
+  assert' "onMatch over: bar" $ onMatch' (over' bar) == "bar: bar"
+  assert' "onMatch over: baz" $ onMatch' (over' baz) == "baz: true"
 
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
@@ -126,7 +150,7 @@ test = do
     $ L.null
     $ (contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int)))
 
-  assert' "show" $ show (foo :: Variant TestVariants) ==  """(inj @"foo" 42)"""
+  assert' "show" $ show (foo ∷ Variant TestVariants) ==  """(inj @"foo" 42)"""
 
   assert' "unvariant: foo" $
     let Unvariant f = unvariant (foo ∷ Variant TestVariants)
