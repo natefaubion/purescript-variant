@@ -50,10 +50,10 @@ foreign import data Variant ∷ Row Type → Type
 -- | intAtFoo = inj (Proxy :: Proxy "foo") 42
 -- | ```
 inj
-  ∷ ∀ proxy sym a r1 r2
+  ∷ ∀ sym a r1 r2
   . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
-  ⇒ proxy sym
+  ⇒ Proxy sym
   → a
   → Variant r2
 inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
@@ -68,11 +68,11 @@ inj p value = coerceV $ VariantRep { type: reflectSymbol p, value }
 -- |   Nothing -> 0
 -- | ```
 prj
-  ∷ ∀ proxy sym a r1 r2 f
+  ∷ ∀ sym a r1 r2 f
   . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
   ⇒ Alternative f
-  ⇒ proxy sym
+  ⇒ Proxy sym
   → Variant r2
   → f a
 prj p = on p pure (const empty)
@@ -81,10 +81,10 @@ prj p = on p pure (const empty)
 -- | The failure branch receives the provided variant, but with the label
 -- | removed.
 on
-  ∷ ∀ proxy sym a b r1 r2
+  ∷ ∀ sym a b r1 r2
   . R.Cons sym a r1 r2
   ⇒ IsSymbol sym
-  ⇒ proxy sym
+  ⇒ Proxy sym
   → (a → b)
   → (Variant r1 → b)
   → Variant r2
@@ -337,10 +337,10 @@ contract v =
   coerceR = unsafeCoerce
 
 type Unvariant' r x =
-  ∀ proxy s t o
+  ∀ s t o
   . IsSymbol s
   ⇒ R.Cons s t o r
-  ⇒ proxy s
+  ⇒ Proxy s
   → t
   → x
 
@@ -360,11 +360,11 @@ unvariant v = case (unsafeCoerce v ∷ VariantRep Unit) of
       coerce f { reflectSymbol: const o.type } {} Proxy o.value
   where
   coerce
-    ∷ ∀ proxy x
+    ∷ ∀ x
     . Unvariant' r x
-    → { reflectSymbol ∷ proxy "" → String }
+    → { reflectSymbol ∷ Proxy "" → String }
     → {}
-    → proxy ""
+    → Proxy ""
     → Unit
     → x
   coerce = unsafeCoerce
@@ -375,7 +375,7 @@ revariant (Unvariant f) = f inj
 
 class VariantEqs :: RL.RowList Type -> Constraint
 class VariantEqs rl where
-  variantEqs ∷ forall proxy. proxy rl → L.List (VariantCase → VariantCase → Boolean)
+  variantEqs ∷ Proxy rl → L.List (VariantCase → VariantCase → Boolean)
 
 instance eqVariantNil ∷ VariantEqs RL.Nil where
   variantEqs _ = L.Nil
@@ -399,7 +399,7 @@ instance eqVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl) ⇒ Eq
 
 class VariantBounded :: RL.RowList Type -> Constraint
 class VariantBounded rl where
-  variantBounded ∷ forall proxy. proxy rl → L.List (BoundedDict VariantCase)
+  variantBounded ∷ Proxy rl → L.List (BoundedDict VariantCase)
 
 instance boundedVariantNil ∷ VariantBounded RL.Nil where
   variantBounded _ = L.Nil
@@ -435,7 +435,7 @@ instance boundedVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, V
 
 class VariantBoundedEnums :: RL.RowList Type -> Constraint
 class VariantBounded rl ⇐ VariantBoundedEnums rl where
-  variantBoundedEnums ∷ forall proxy. proxy rl → L.List (BoundedEnumDict VariantCase)
+  variantBoundedEnums ∷ Proxy rl → L.List (BoundedEnumDict VariantCase)
 
 instance enumVariantNil ∷ VariantBoundedEnums RL.Nil where
   variantBoundedEnums _ = L.Nil
@@ -507,7 +507,7 @@ instance boundedEnumVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs r
 
 class VariantOrds :: RL.RowList Type -> Constraint
 class VariantOrds rl where
-  variantOrds ∷ forall proxy. proxy rl → L.List (VariantCase → VariantCase → Ordering)
+  variantOrds ∷ Proxy rl → L.List (VariantCase → VariantCase → Ordering)
 
 instance ordVariantNil ∷ VariantOrds RL.Nil where
   variantOrds _ = L.Nil
@@ -531,7 +531,7 @@ instance ordVariant ∷ (RL.RowToList r rl, VariantTags rl, VariantEqs rl, Varia
 
 class VariantShows :: RL.RowList Type -> Constraint
 class VariantShows rl where
-  variantShows ∷ forall proxy. proxy rl → L.List (VariantCase → String)
+  variantShows ∷ Proxy rl → L.List (VariantCase → String)
 
 instance showVariantNil ∷ VariantShows RL.Nil where
   variantShows _ = L.Nil

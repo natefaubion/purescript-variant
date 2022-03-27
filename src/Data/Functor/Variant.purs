@@ -75,9 +75,9 @@ instance functorVariantF ∷ Functor (VariantF r) where
 
 class FoldableVFRL :: RL.RowList (Type -> Type) -> Row (Type -> Type) -> Constraint
 class FoldableVFRL rl row | rl -> row where
-  foldrVFRL :: forall proxy a b. proxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
-  foldlVFRL :: forall proxy a b. proxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
-  foldMapVFRL :: forall proxy a m. Monoid m => proxy rl -> (a -> m) -> VariantF row a -> m
+  foldrVFRL :: forall a b. Proxy rl -> (a -> b -> b) -> b -> VariantF row a -> b
+  foldlVFRL :: forall a b. Proxy rl -> (b -> a -> b) -> b -> VariantF row a -> b
+  foldMapVFRL :: forall a m. Monoid m => Proxy rl -> (a -> m) -> VariantF row a -> m
 
 instance foldableNil :: FoldableVFRL RL.Nil () where
   foldrVFRL _ _ _ = case_
@@ -99,7 +99,7 @@ instance foldableCons ::
 
 class TraversableVFRL :: RL.RowList (Type -> Type) -> Row (Type -> Type) -> Constraint
 class FoldableVFRL rl row <= TraversableVFRL rl row | rl -> row where
-  traverseVFRL :: forall proxy f a b. Applicative f => proxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
+  traverseVFRL :: forall f a b. Applicative f => Proxy rl -> (a -> f b) -> VariantF row a -> f (VariantF row b)
 
 instance traversableNil :: TraversableVFRL RL.Nil () where
   traverseVFRL _ _ = case_
@@ -134,11 +134,11 @@ instance traversableVariantF ::
 -- | maybeAtFoo = inj (Proxy :: Proxy "foo") (Just 42)
 -- | ```
 inj
-  ∷ ∀ proxy sym f a r1 r2
+  ∷ ∀ sym f a r1 r2
   . R.Cons sym f r1 r2
   ⇒ IsSymbol sym
   ⇒ Functor f
-  ⇒ proxy sym
+  ⇒ Proxy sym
   → f a
   → VariantF r2 a
 inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map: Mapper map }
@@ -153,11 +153,11 @@ inj p value = coerceV $ VariantFRep { type: reflectSymbol p, value, map: Mapper 
 -- |   _ -> 0
 -- | ```
 prj
-  ∷ ∀ proxy sym f a r1 r2 g
+  ∷ ∀ sym f a r1 r2 g
   . R.Cons sym f r1 r2
   ⇒ Alternative g
   ⇒ IsSymbol sym
-  ⇒ proxy sym
+  ⇒ Proxy sym
   → VariantF r2 a
   → g (f a)
 prj p = on p pure (const empty)
@@ -166,10 +166,10 @@ prj p = on p pure (const empty)
 -- | The failure branch receives the provided variant, but with the label
 -- | removed.
 on
-  ∷ ∀ proxy sym f a b r1 r2
+  ∷ ∀ sym f a b r1 r2
   . R.Cons sym f r1 r2
   ⇒ IsSymbol sym
-  ⇒ proxy sym
+  ⇒ Proxy sym
   → (f a → b)
   → (VariantF r1 a → b)
   → VariantF r2 a
@@ -455,11 +455,11 @@ contract v =
   coerceR = unsafeCoerce
 
 type UnvariantF' r a x =
-  ∀ proxy s f o
+  ∀ s f o
   . IsSymbol s
   ⇒ R.Cons s f o r
   ⇒ Functor f
-  ⇒ proxy s
+  ⇒ Proxy s
   → f a
   → x
 
@@ -484,12 +484,12 @@ unvariantF v = case (unsafeCoerce v ∷ VariantFRep UnknownF Unit) of
         o.value
   where
   coerce
-    ∷ ∀ proxy x
+    ∷ ∀ x
     . UnvariantF' r a x
-    → { reflectSymbol ∷ proxy "" → String }
+    → { reflectSymbol ∷ Proxy "" → String }
     → {}
     → { map ∷ Mapper UnknownF }
-    → proxy ""
+    → Proxy ""
     → UnknownF Unit
     → x
   coerce = unsafeCoerce
