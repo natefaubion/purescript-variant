@@ -33,7 +33,6 @@
     "purescript-enums": "^6.0.0"
   },
   "devDependencies": {
-    "purescript-console": "^6.0.0",
     "purescript-assert": "^6.0.0",
     "purescript-either": "^6.0.0"
   }

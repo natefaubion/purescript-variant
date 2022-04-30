@@ -13,7 +13,6 @@ to generate this file without the comments in this block.
 { name = "variant"
 , dependencies =
   [ "assert"
-  , "console"
   , "control"
   , "effect"
   , "either"
