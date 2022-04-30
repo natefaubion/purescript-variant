@@ -138,7 +138,7 @@ foreign import data VariantFCase ∷ Type → Type
 
 class VariantTags :: forall k. RL.RowList k -> Constraint
 class VariantTags rl where
-  variantTags ∷ forall proxy. proxy rl → L.List String
+  variantTags ∷ Proxy rl → L.List String
 
 instance variantTagsNil ∷ VariantTags RL.Nil where
   variantTags _ = L.Nil
