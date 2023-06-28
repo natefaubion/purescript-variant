@@ -9,7 +9,6 @@ import Data.Variant (Variant, on, onMatch, case_, default, expand, inj, prj, mat
 import Effect (Effect)
 import Record.Builder (build, modify, Builder)
 import Test.Assert (assert')
-import Type.Proxy (Proxy(..))
 
 type TestVariants =
   ( foo ∷ Int
@@ -23,23 +22,14 @@ type TestVariants' =
   , baz ∷ String
   )
 
-_foo ∷ Proxy "foo"
-_foo = Proxy
-
-_bar ∷ Proxy "bar"
-_bar = Proxy
-
-_baz ∷ Proxy "baz"
-_baz = Proxy
-
 foo ∷ ∀ r. Variant (foo ∷ Int | r)
-foo = inj _foo 42
+foo = inj @"foo" 42
 
 bar ∷ ∀ r. Variant (bar ∷ String | r)
-bar = inj _bar "bar"
+bar = inj @"bar" "bar"
 
 baz ∷ ∀ r. Variant (baz ∷ Boolean | r)
-baz = inj _baz true
+baz = inj @"baz" true
 
 modifyRec ∷ Builder (Record TestVariants) (Record TestVariants)
 modifyRec = setVariant foo >>> setVariant bar >>> setVariant baz
@@ -61,15 +51,15 @@ recAfter = build modifyRec recBefore
 
 test ∷ Effect Unit
 test = do
-  assert' "prj: Foo" $ prj _foo foo == Just 42
-  assert' "prj: !Foo" $ prj _foo bar == (Nothing ∷ Maybe Int)
+  assert' "prj: Foo" $ prj @"foo" foo == Just 42
+  assert' "prj: !Foo" $ prj @"foo" bar == (Nothing ∷ Maybe Int)
 
   let
     case1 ∷ Variant TestVariants → String
     case1 = case_
-      # on _foo (\a → "foo: " <> show a)
-      # on _bar (\a → "bar: " <> a)
-      # on _baz (\a → "baz: " <> show a)
+      # on @"foo" (\a → "foo: " <> show a)
+      # on @"bar" (\a → "bar: " <> a)
+      # on @"baz" (\a → "baz: " <> show a)
 
   assert' "case1: foo" $ case1 foo == "foo: 42"
   assert' "case1: bar" $ case1 bar == "bar: bar"
@@ -78,8 +68,8 @@ test = do
   let
     case2 ∷ Variant TestVariants → String
     case2 = default "no match"
-      # on _foo (\a → "foo: " <> show a)
-      # on _bar (\a → "bar: " <> a)
+      # on @"foo" (\a → "foo: " <> show a)
+      # on @"bar" (\a → "bar: " <> a)
 
   assert' "case2: foo" $ case2 foo == "foo: 42"
   assert' "case2: bar" $ case2 bar == "bar: bar"
@@ -102,11 +92,13 @@ test = do
     overSome' = overSome
       { foo: \a → show a
       , baz: \a → show a
-      } expand
+      }
+      expand
 
-    over' ∷ forall r.
-      Variant ( foo ∷ Int, baz ∷ Boolean | r ) →
-      Variant ( foo ∷ String, baz ∷ String | r )
+    over'
+      ∷ forall r
+       . Variant (foo ∷ Int, baz ∷ Boolean | r)
+      → Variant (foo ∷ String, baz ∷ String | r)
     over' = over
       { foo: \a → show a
       , baz: \a → show a
@@ -115,12 +107,12 @@ test = do
     onMatch' ∷ Variant TestVariants' → String
     onMatch' = case_
       # onMatch
-        { foo: \a → "foo: " <> a
-        , bar: \a → "bar: " <> a
-        }
+          { foo: \a → "foo: " <> a
+          , bar: \a → "bar: " <> a
+          }
       # onMatch
-        { baz: \a → "baz: " <> a
-        }
+          { baz: \a → "baz: " <> a
+          }
 
   assert' "onMatch overSome: foo" $ onMatch' (overSome' foo) == "foo: 42"
   assert' "onMatch overSome: bar" $ onMatch' (overSome' bar) == "bar: bar"
@@ -133,12 +125,12 @@ test = do
   assert' "eq: foo" $ (foo ∷ Variant TestVariants) == foo
   assert' "eq: bar" $ (bar ∷ Variant TestVariants) == bar
   assert' "eq: baz" $ (baz ∷ Variant TestVariants) == baz
-  assert' "notEq: foo" $ (foo ∷ Variant TestVariants) /= inj _foo 53
+  assert' "notEq: foo" $ (foo ∷ Variant TestVariants) /= inj @"foo" 53
   assert' "notEq: bar" $ (foo ∷ Variant TestVariants) /= bar
 
   assert' "compare: foo EQ" $ compare (foo ∷ Variant TestVariants) foo == EQ
-  assert' "compare: foo LT" $ compare (foo ∷ Variant TestVariants) (inj _foo 53) == LT
-  assert' "compare: foo GT" $ compare (foo ∷ Variant TestVariants) (inj _foo 12) == GT
+  assert' "compare: foo LT" $ compare (foo ∷ Variant TestVariants) (inj @"foo" 53) == LT
+  assert' "compare: foo GT" $ compare (foo ∷ Variant TestVariants) (inj @"foo" 12) == GT
   assert' "compare: LT" $ compare bar (foo ∷ Variant TestVariants) == LT
   assert' "compare: GT" $ compare (foo ∷ Variant TestVariants) bar == GT
 
@@ -150,11 +142,13 @@ test = do
     $ L.null
     $ (contract (bar ∷ Variant TestVariants) ∷ L.List (Variant (foo ∷ Int)))
 
-  assert' "show" $ show (foo ∷ Variant TestVariants) ==  """(inj @"foo" 42)"""
+  assert' "show" $ show (foo ∷ Variant TestVariants) == """(inj @"foo" 42)"""
 
   assert' "unvariant: foo" $
-    let Unvariant f = unvariant (foo ∷ Variant TestVariants)
-    in f \s _ → reflectSymbol s == "foo"
+    let
+      Unvariant f = unvariant (foo ∷ Variant TestVariants)
+    in
+      f \s _ → reflectSymbol s == "foo"
 
   assert' "unvariant: build record (foo)" $ recAfter.foo == 42
   assert' "unvariant: build record (bar)" $ recAfter.bar == "bar"
