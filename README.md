@@ -83,24 +83,17 @@ This library just uses the same structural row system that we use with records
 We lift values into `Variant` with `inj` by specifying a _tag_.
 
 ```purescript
-import Type.Proxy (Proxy(..))
-
 someFoo :: forall v. Variant (foo :: Int | v)
-someFoo = inj (Proxy :: Proxy "foo") 42
+someFoo = inj @"foo" 42
 ```
 
 `Proxy` is just a way to tell the compiler what our tag is at the type level.
 I can stamp out a bunch of these with different labels:
 
 ```purescript
-someFoo :: forall v. Variant (foo :: Int | v)
-someFoo = inj (Proxy :: Proxy "foo") 42
-
-someBar :: forall v. Variant (bar :: Boolean | v)
-someBar = inj (Proxy :: Proxy "bar") true
-
-someBaz :: forall v. Variant (baz :: String | v)
-someBaz = inj (Proxy :: Proxy "baz") "Baz"
+someFoo = inj @"foo" 42
+someBar = inj @"bar" true
+someBaz = inj @"baz" "Baz"
 ```
 
 We can try to extract a value from this via `on`, which takes a function to
@@ -109,7 +102,7 @@ case of failure.
 
 ```purescript
 fooToString :: forall v. Variant (foo :: Int | v) -> String
-fooToString = on (Proxy :: Proxy "foo") show (\_ -> "not foo")
+fooToString = on @"foo" show (\_ -> "not foo")
 
 fooToString someFoo == "42"
 fooToString someBar == "not foo"
@@ -119,22 +112,18 @@ We can chain usages of `on` and terminate it with `case_` (for compiler-checked
 exhaustivity) or `default` (to provide a default value in case of failure).
 
 ```purescript
-_foo = Proxy :: Proxy "foo"
-_bar = Proxy :: Proxy "bar"
-_baz = Proxy :: Proxy "baz"
-
 allToString :: Variant (foo :: Int, bar :: Boolean, baz :: String) -> String
 allToString =
   case_
-    # on _foo show
-    # on _bar (if _ then "true" else "false")
-    # on _baz (\str -> str)
+    # on @"foo" show
+    # on @"bar" (if _ then "true" else "false")
+    # on @"baz" (\str -> str)
 
 someToString :: forall v. Variant (foo :: Int, bar :: Boolean | v) -> String
 someToString =
   default "unknown"
-    # on _foo show
-    # on _bar (if _ then "true" else "false")
+    # on @"foo" show
+    # on @"bar" (if _ then "true" else "false")
 
 allToString someBaz == "Baz"
 someToString someBaz == "unknown"
@@ -145,13 +134,13 @@ function composition and reuse them in different contexts.
 
 ```purescript
 onFooOrBar :: forall v. (Variant v -> String) -> Variant (foo :: Int, bar :: Boolean | v) -> String
-onFooOrBar = on _foo show >>> on _bar (if _ then "true" else "false")
+onFooOrBar = on @"foo" show >>> on @"bar" (if _ then "true" else "false")
 
 allToString :: Variant (foo :: Int, bar :: Boolean, baz :: String) -> String
 allToString =
   case_
     # onFooOrBar
-    # on _baz (\str -> str)
+    # on @"baz" (\str -> str)
 ```
 
 Instead of chaining with just `on`, there is `onMatch` which adds record sugar.
@@ -185,13 +174,13 @@ except it's indexed by things of kind `Type -> Type`.
 
 ```purescript
 someFoo :: forall v. VariantF (foo :: Maybe | v) Int
-someFoo = inj (Proxy :: Proxy "foo") (Just 42)
+someFoo = inj @"foo" (Just 42)
 
 someBar :: forall v. VariantF (bar :: Tuple String | v) Int
-someBar = inj (Proxy :: Proxy "bar") (Tuple "bar" 42)
+someBar = inj @"bar" (Tuple "bar" 42)
 
 someBaz :: forall v a. VariantF (baz :: Either String | v) a
-someBaz = inj (Proxy :: Proxy "baz") (Left "Baz")
+someBaz = inj @"baz" (Left "Baz")
 ```
 
 `VariantF` supports all the same combinators as `Variant`.

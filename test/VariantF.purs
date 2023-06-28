@@ -9,51 +9,42 @@ import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Test.Assert (assert')
-import Type.Proxy (Proxy(..))
 
 type TestVariants =
   ( foo ∷ Maybe
   , bar ∷ Tuple String
   , baz ∷ Either String
   )
+
 type TestVariants' =
   ( foo ∷ Either String
   , bar ∷ Tuple String
   , baz ∷ Either String
   )
 
-_foo ∷ Proxy "foo"
-_foo = Proxy
-
-_bar ∷ Proxy "bar"
-_bar = Proxy
-
-_baz ∷ Proxy "baz"
-_baz = Proxy
-
 foo ∷ ∀ r. VariantF (foo ∷ Maybe | r) Int
-foo = inj _foo (Just 42)
+foo = inj @"foo" (Just 42)
 
 bar ∷ ∀ r. VariantF (bar ∷ Tuple String | r) Int
-bar = inj _bar (Tuple "bar" 42)
+bar = inj @"bar" (Tuple "bar" 42)
 
 baz ∷ ∀ r. VariantF (baz ∷ Either String | r) Int
-baz = inj _baz (Left "baz")
+baz = inj @"baz" (Left "baz")
 
 completeness ∷ ∀ r a. VariantF r a → VariantF r a
 completeness = revariantF <<< unvariantF
 
 test ∷ Effect Unit
 test = do
-  assert' "prj: Foo" $ prj _foo foo == Just (Just 42)
-  assert' "prj: !Foo" $ prj _foo bar == (Nothing ∷ Maybe (Maybe Int))
+  assert' "prj: Foo" $ prj @"foo" foo == Just (Just 42)
+  assert' "prj: !Foo" $ prj @"foo" bar == (Nothing ∷ Maybe (Maybe Int))
 
   let
     case1 ∷ VariantF TestVariants Int → String
     case1 = case_
-      # on _foo (\a → "foo: " <> show a)
-      # on _bar (\a → "bar: " <> show a)
-      # on _baz (\a → "baz: " <> show a)
+      # on @"foo" (\a → "foo: " <> show a)
+      # on @"bar" (\a → "bar: " <> show a)
+      # on @"baz" (\a → "baz: " <> show a)
 
   assert' "case1: foo" $ case1 foo == "foo: (Just 42)"
   assert' "case1: bar" $ case1 bar == "bar: (Tuple \"bar\" 42)"
@@ -62,8 +53,8 @@ test = do
   let
     case2 ∷ VariantF TestVariants Int → String
     case2 = default "no match"
-      # on _foo (\a → "foo: " <> show a)
-      # on _bar (\a → "bar: " <> show a)
+      # on @"foo" (\a → "foo: " <> show a)
+      # on @"bar" (\a → "bar: " <> show a)
 
   assert' "case2: foo" $ case2 foo == "foo: (Just 42)"
   assert' "case2: bar" $ case2 bar == "bar: (Tuple \"bar\" 42)"
@@ -71,7 +62,7 @@ test = do
 
   let
     case3 ∷ VariantF (foo ∷ Maybe) String → String
-    case3 = case_ # on _foo (\a → "foo: " <> show a)
+    case3 = case_ # on @"foo" (\a → "foo: " <> show a)
 
   assert' "map" $ case3 (show <$> foo) == "foo: (Just \"42\")"
 
@@ -91,12 +82,12 @@ test = do
     onMatch' ∷ VariantF TestVariants Int → String
     onMatch' = case_
       # onMatch
-        { foo: \a → "foo: " <> show a
-        , baz: \a → "baz: " <> show a
-        }
+          { foo: \a → "foo: " <> show a
+          , baz: \a → "baz: " <> show a
+          }
       # onMatch
-        { bar: \a → "bar: " <> show a
-        }
+          { bar: \a → "bar: " <> show a
+          }
 
   assert' "onMatch: foo" $ onMatch' foo == "foo: (Just 42)"
   assert' "onMatch: bar" $ onMatch' bar == "bar: (Tuple \"bar\" 42)"
@@ -105,9 +96,9 @@ test = do
   let
     map' ∷ VariantF TestVariants Int → String
     map' = case_
-      # on _foo (\a → "foo: " <> show a)
-      # on _bar (\a → "bar: " <> show a)
-      # on _baz (\a → "baz: " <> show a)
+      # on @"foo" (\a → "foo: " <> show a)
+      # on @"bar" (\a → "bar: " <> show a)
+      # on @"baz" (\a → "baz: " <> show a)
 
     map'' ∷ VariantF TestVariants Int → String
     map'' = map (_ + 2) >>> map'
@@ -115,14 +106,17 @@ test = do
     overSome' ∷ VariantF TestVariants Int → VariantF TestVariants Int
     overSome' = overSome
       { baz: \(_ ∷ Either String Int) → Right 20
-      } expand
+      }
+      expand
 
-    over' ∷ forall r.
-      VariantF (baz ∷ Either String | r) Int →
-      VariantF (baz ∷ Either String | r) Int
+    over'
+      ∷ forall r
+       . VariantF (baz ∷ Either String | r) Int
+      → VariantF (baz ∷ Either String | r) Int
     over' = over
       { baz: \(_ ∷ Either String Int) → Right 20
-      } identity
+      }
+      identity
 
   assert' "map: foo" $ map'' foo == "foo: (Just 44)"
   assert' "map: bar" $ map'' bar == "bar: (Tuple \"bar\" 44)"
@@ -144,4 +138,4 @@ test = do
     $ L.null
     $ (contract (bar ∷ VariantF TestVariants Int) ∷ L.List (VariantF (foo ∷ Maybe) Int))
 
-  assert' "show" $ show (foo ∷ VariantF TestVariants Int) ==  """(inj @"foo" (Just 42))"""
+  assert' "show" $ show (foo ∷ VariantF TestVariants Int) == """(inj @"foo" (Just 42))"""
