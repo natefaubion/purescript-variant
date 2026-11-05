@@ -1,11 +1,11 @@
 {
   "private": true,
   "scripts": {
-    "build": "spago build -u '--censor-lib --strict'",
+    "build": "spago build --strict",
     "test": "spago test"
   },
   "devDependencies": {
-    "spago": "^0.20.8",
+    "spago": "1.0.5",
     "purescript-psa": "^0.8.2"
   }
 }

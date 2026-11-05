@@ -1,0 +1,30 @@
+package:
+  name: variant
+  description: Polymorphic variants for PureScript
+  publish:
+    version: 8.0.1
+    license: MIT
+    location:
+      githubOwner: natefaubion
+      githubRepo: purescript-variant
+  dependencies:
+    - control: ">=6.0.0 <7.0.0"
+    - enums: ">=6.0.0 <7.0.0"
+    - foldable-traversable: ">=6.0.0 <7.0.0"
+    - lists: ">=7.0.0 <8.0.0"
+    - maybe: ">=6.0.0 <7.0.0"
+    - partial: ">=4.0.0 <5.0.0"
+    - prelude: ">=6.0.0 <7.0.0"
+    - type-equality: ">=4.0.1 <5.0.0"
+    - unsafe-coerce: ">=6.0.0 <7.0.0"
+  test:
+    main: Test.Main
+    dependencies:
+      - assert: ">=6.0.0 <7.0.0"
+      - effect: ">=4.0.0 <5.0.0"
+      - either: ">=6.0.0 <7.0.0"
+      - record: ">=4.0.0 <5.0.0"
+      - tuples: ">=7.0.0 <8.0.0"
+workspace:
+  buildOpts:
+    censorLibraryWarnings: all

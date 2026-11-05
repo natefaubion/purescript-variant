@@ -8,7 +8,7 @@ Polymorphic variants for PureScript.
 ## Install
 
 ```
-bower install purescript-variant
+spago install variant
 ```
 
 ## Documentation
